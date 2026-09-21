@@ -13,7 +13,7 @@ export default function ChatDashboard() {
   const { connectionId } = useParams();
   const { getToken } = useAuth();
   const { signOut } = useClerk();
-  const { chats, activeChatId, addMessage, createNewChat, setActiveChatId, dbStatus, dbName, apiKey, setApiKey, setDbStatus, setDbName, setActiveConnectionId, activeConnectionId } = useStore();
+  const { chats, activeChatId, addMessage, createNewChat, setActiveChatId, setChats, dbStatus, dbName, apiKey, setApiKey, setDbStatus, setDbName, setActiveConnectionId, activeConnectionId } = useStore();
   const [schemaData, setSchemaData] = useState('');
   const [loadingSchema, setLoadingSchema] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
@@ -65,6 +65,26 @@ export default function ChatDashboard() {
     reconnect();
   }, [connectionId]);
 
+  // Fetch chat history for this connection
+  useEffect(() => {
+    if (!connectionId) return;
+    const fetchChats = async () => {
+      try {
+        const token = await getToken();
+        const res = await axios.get('/api/chat/conversations', {
+          params: { connection_id: connectionId },
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setChats(res.data);
+      } catch (err) {
+        console.error('Failed to load chat history:', err);
+      }
+    };
+    if (dbStatus === 'connected' && activeConnectionId === connectionId) {
+      fetchChats();
+    }
+  }, [connectionId, dbStatus, activeConnectionId, getToken, setChats]);
+
   useEffect(() => {
     // bypass dbStatus check for now so UI can be seen
     // if (dbStatus === 'disconnected') {
@@ -86,7 +106,7 @@ export default function ChatDashboard() {
       const clerkToken = await getToken();
       const res = await axios.post(
         '/api/chat/',
-        { message: userMsg },
+        { message: userMsg, conversation_id: activeChat.id, connection_id: connectionId },
         { headers: { Authorization: `Bearer ${clerkToken}`, 'X-API-Key': apiKey || '' } }
       );
       addMessage({
@@ -153,6 +173,23 @@ export default function ChatDashboard() {
   const handleLogout = async () => {
     await signOut();
     navigate('/sign-in');
+  };
+
+  const handleDeleteChat = async (e, chatId) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this chat session?')) return;
+    try {
+      const token = await getToken();
+      await axios.delete(`/api/chat/conversations/${chatId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const updatedChats = chats.filter(c => c.id !== chatId);
+      setChats(updatedChats);
+    } catch (err) {
+      console.error('Failed to delete chat:', err);
+      alert('Failed to delete chat session. Please try again.');
+    }
   };
 
   const renderChart = (data) => {
@@ -319,6 +356,22 @@ export default function ChatDashboard() {
             <div className="max-w-[1000px] mx-auto w-full px-gutter pt-8 flex flex-col gap-8">
               {activeTab === 'chat' && (
                 <>
+                  {chatHistory.length > 0 && activeChat && (
+                    <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-2 animate-fade-in shrink-0">
+                      <span className="text-sm font-semibold text-primary font-display flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[16px] text-primary">chat_bubble</span>
+                        Active Session: {activeChat.title}
+                      </span>
+                      <button
+                        onClick={(e) => handleDeleteChat(e, activeChat.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 transition-all active:scale-95 cursor-pointer shrink-0"
+                        title="Delete this chat session"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">delete</span>
+                        <span>Delete Chat</span>
+                      </button>
+                    </div>
+                  )}
                   {chatHistory.length === 0 ? (
                     <div className="flex flex-col items-center justify-center mt-20 text-on-surface-variant/50">
                       <span className="material-symbols-outlined text-[64px] mb-4 text-primary/30">neurology</span>
@@ -420,12 +473,19 @@ export default function ChatDashboard() {
                   {chats.length > 0 && chats.some(c => c.messages.length > 0) ? (
                     <div className="flex flex-col gap-4">
                       {chats.filter(c => c.messages.length > 0).map((chat) => (
-                        <div key={chat.id} onClick={() => { setActiveChatId(chat.id); setActiveTab('chat'); }} className="bg-surface-container-low/60 backdrop-blur-md rounded-xl border border-white/5 p-4 flex items-center gap-4 cursor-pointer hover:bg-white/[0.05] transition-all active:scale-[0.99] group">
-                          <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">chat_bubble</span>
+                        <div key={chat.id} onClick={() => { setActiveChatId(chat.id); setActiveTab('chat'); }} className="bg-surface-container-low/60 backdrop-blur-md rounded-xl border border-white/5 p-4 flex items-center gap-4 cursor-pointer hover:bg-white/[0.05] transition-all active:scale-[0.99] group relative">
+                          <span className="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors shrink-0">chat_bubble</span>
                           <div className="flex-1 overflow-hidden">
-                            <p className="font-body-lg text-on-surface group-hover:text-primary transition-colors truncate">{chat.title}</p>
+                            <p className="font-body-lg text-on-surface group-hover:text-primary transition-colors truncate pr-8">{chat.title}</p>
                             <p className="font-body-sm text-on-surface-variant truncate text-xs mt-1">{chat.messages.length} messages</p>
                           </div>
+                          <button
+                            onClick={(e) => handleDeleteChat(e, chat.id)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant/60 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
+                            title="Delete Chat Session"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -633,97 +693,97 @@ export default function ChatDashboard() {
               )}
 
               {activeTab === 'settings' && (
-                    <div className="flex flex-col mt-4 max-w-2xl">
-                        <h2 className="font-display text-headline-sm font-bold text-primary mb-6 flex items-center gap-2"><span className="material-symbols-outlined">settings</span> Settings</h2>
-                        <div className="bg-surface-container-low/80 backdrop-blur-md rounded-2xl border border-white/5 p-6 flex flex-col gap-6">
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-on-surface-variant mb-2">Anthropic API Key</label>
-                              <p className="text-xs text-on-surface-variant/70 mb-3">If provided, this key will be used instead of the server's default key.</p>
-                              <input 
-                                type="password" 
-                                value={apiKey} 
-                                onChange={(e) => setApiKey(e.target.value)} 
-                                placeholder="sk-ant-api03-..." 
-                                className="w-full bg-surface-container-high border border-white/10 rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all font-label-mono text-sm"
-                              />
-                            </div>
+                <div className="flex flex-col mt-4 max-w-2xl">
+                  <h2 className="font-display text-headline-sm font-bold text-primary mb-6 flex items-center gap-2"><span className="material-symbols-outlined">settings</span> Settings</h2>
+                  <div className="bg-surface-container-low/80 backdrop-blur-md rounded-2xl border border-white/5 p-6 flex flex-col gap-6">
 
-                            <hr className="border-white/5" />
+                    <div>
+                      <label className="block text-sm font-medium text-on-surface-variant mb-2">Anthropic API Key</label>
+                      <p className="text-xs text-on-surface-variant/70 mb-3">If provided, this key will be used instead of the server's default key.</p>
+                      <input
+                        type="password"
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                        placeholder="sk-ant-api03-..."
+                        className="w-full bg-surface-container-high border border-white/10 rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all font-label-mono text-sm"
+                      />
+                    </div>
 
-                            <div>
-                              <h3 className="text-on-surface font-medium mb-3">Theme Preferences</h3>
-                              <div className="flex gap-4">
-                                <button className="flex-1 py-3 rounded-xl border-2 border-primary bg-primary/10 text-primary font-medium flex items-center justify-center gap-2">
-                                  <span className="material-symbols-outlined">dark_mode</span> Dark
-                                </button>
-                                <button className="flex-1 py-3 rounded-xl border-2 border-white/5 bg-surface-container-high text-on-surface-variant font-medium flex items-center justify-center gap-2 opacity-50 cursor-not-allowed">
-                                  <span className="material-symbols-outlined">light_mode</span> Light (Soon)
-                                </button>
-                              </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-                {activeTab === 'support' && (
-                    <div className="flex flex-col mt-4 max-w-3xl">
-                        <h2 className="font-display text-headline-sm font-bold text-primary mb-6 flex items-center gap-2"><span className="material-symbols-outlined">help_outline</span> Support Center</h2>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                          <div className="bg-surface-container-low/80 backdrop-blur-md rounded-2xl border border-white/5 p-6">
-                            <span className="material-symbols-outlined text-secondary text-[32px] mb-4">mail</span>
-                            <h3 className="text-on-surface font-medium text-lg mb-2">Contact Us</h3>
-                            <p className="text-on-surface-variant text-sm mb-4">Need direct assistance? Our team is here to help you get the most out of QueryTalk AI.</p>
-                            <button className="bg-secondary-container text-on-secondary-container px-4 py-2 rounded-lg font-medium text-sm hover:bg-secondary-container/90 transition-colors">Email Support</button>
-                          </div>
-                          <div className="bg-surface-container-low/80 backdrop-blur-md rounded-2xl border border-white/5 p-6">
-                            <span className="material-symbols-outlined text-tertiary-container text-[32px] mb-4">book</span>
-                            <h3 className="text-on-surface font-medium text-lg mb-2">Documentation</h3>
-                            <p className="text-on-surface-variant text-sm mb-4">Read our detailed guides on database connections, query optimization, and more.</p>
-                            <button className="bg-surface-container-high text-on-surface border border-white/10 px-4 py-2 rounded-lg font-medium text-sm hover:bg-surface-variant transition-colors">View Docs</button>
-                          </div>
-                        </div>
+                    <hr className="border-white/5" />
 
-                        <h3 className="font-display text-title-lg font-medium text-on-surface mb-4 mt-4">Frequently Asked Questions</h3>
-                        <div className="flex flex-col gap-3">
-                          <div className="bg-surface-container-high/50 rounded-xl p-4 border border-white/5">
-                            <h4 className="text-on-surface font-medium mb-2">How is my API key stored?</h4>
-                            <p className="text-on-surface-variant text-sm leading-relaxed">Your API key is stored locally in your browser's localStorage and is sent securely via headers to our backend. It is never persisted in our database.</p>
-                          </div>
-                          <div className="bg-surface-container-high/50 rounded-xl p-4 border border-white/5">
-                            <h4 className="text-on-surface font-medium mb-2">What databases are supported?</h4>
-                            <p className="text-on-surface-variant text-sm leading-relaxed">Currently, we support SQLite, PostgreSQL, and MySQL. We are constantly working on adding more database integrations.</p>
-                          </div>
-                        </div>
+                    <div>
+                      <h3 className="text-on-surface font-medium mb-3">Theme Preferences</h3>
+                      <div className="flex gap-4">
+                        <button className="flex-1 py-3 rounded-xl border-2 border-primary bg-primary/10 text-primary font-medium flex items-center justify-center gap-2">
+                          <span className="material-symbols-outlined">dark_mode</span> Dark
+                        </button>
+                        <button className="flex-1 py-3 rounded-xl border-2 border-white/5 bg-surface-container-high text-on-surface-variant font-medium flex items-center justify-center gap-2 opacity-50 cursor-not-allowed">
+                          <span className="material-symbols-outlined">light_mode</span> Light (Soon)
+                        </button>
+                      </div>
                     </div>
-                )}
-                {activeTab === 'notifications' && (
-                    <div className="flex flex-col mt-4 max-w-2xl">
-                        <h2 className="font-display text-headline-sm font-bold text-primary mb-6 flex items-center gap-2"><span className="material-symbols-outlined">notifications</span> Notifications</h2>
-                        <div className="bg-surface-container-low/80 backdrop-blur-md rounded-2xl border border-white/5 p-6 flex flex-col gap-4">
-                            <div className="flex gap-4 items-start pb-4 border-b border-white/5">
-                                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0">
-                                    <span className="material-symbols-outlined">database</span>
-                                </div>
-                                <div>
-                                    <h3 className="text-on-surface font-medium">Database Connected</h3>
-                                    <p className="text-on-surface-variant text-sm mt-1">Successfully connected to local SQLite database (demo_v2.db).</p>
-                                    <span className="text-xs text-on-surface-variant/50 mt-2 block">Just now</span>
-                                </div>
-                            </div>
-                            <div className="flex gap-4 items-start pb-4 border-b border-white/5">
-                                <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center text-secondary shrink-0">
-                                    <span className="material-symbols-outlined">analytics</span>
-                                </div>
-                                <div>
-                                    <h3 className="text-on-surface font-medium">Analytics Updated</h3>
-                                    <p className="text-on-surface-variant text-sm mt-1">Your dashboard data has been successfully seeded with 500 records.</p>
-                                    <span className="text-xs text-on-surface-variant/50 mt-2 block">2 minutes ago</span>
-                                </div>
-                            </div>
-                        </div>
+                  </div>
+                </div>
+              )}
+              {activeTab === 'support' && (
+                <div className="flex flex-col mt-4 max-w-3xl">
+                  <h2 className="font-display text-headline-sm font-bold text-primary mb-6 flex items-center gap-2"><span className="material-symbols-outlined">help_outline</span> Support Center</h2>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div className="bg-surface-container-low/80 backdrop-blur-md rounded-2xl border border-white/5 p-6">
+                      <span className="material-symbols-outlined text-secondary text-[32px] mb-4">mail</span>
+                      <h3 className="text-on-surface font-medium text-lg mb-2">Contact Us</h3>
+                      <p className="text-on-surface-variant text-sm mb-4">Need direct assistance? Our team is here to help you get the most out of QueryTalk AI.</p>
+                      <button className="bg-secondary-container text-on-secondary-container px-4 py-2 rounded-lg font-medium text-sm hover:bg-secondary-container/90 transition-colors">Email Support</button>
                     </div>
-                )}
+                    <div className="bg-surface-container-low/80 backdrop-blur-md rounded-2xl border border-white/5 p-6">
+                      <span className="material-symbols-outlined text-tertiary-container text-[32px] mb-4">book</span>
+                      <h3 className="text-on-surface font-medium text-lg mb-2">Documentation</h3>
+                      <p className="text-on-surface-variant text-sm mb-4">Read our detailed guides on database connections, query optimization, and more.</p>
+                      <button className="bg-surface-container-high text-on-surface border border-white/10 px-4 py-2 rounded-lg font-medium text-sm hover:bg-surface-variant transition-colors">View Docs</button>
+                    </div>
+                  </div>
+
+                  <h3 className="font-display text-title-lg font-medium text-on-surface mb-4 mt-4">Frequently Asked Questions</h3>
+                  <div className="flex flex-col gap-3">
+                    <div className="bg-surface-container-high/50 rounded-xl p-4 border border-white/5">
+                      <h4 className="text-on-surface font-medium mb-2">How is my API key stored?</h4>
+                      <p className="text-on-surface-variant text-sm leading-relaxed">Your API key is stored locally in your browser's localStorage and is sent securely via headers to our backend. It is never persisted in our database.</p>
+                    </div>
+                    <div className="bg-surface-container-high/50 rounded-xl p-4 border border-white/5">
+                      <h4 className="text-on-surface font-medium mb-2">What databases are supported?</h4>
+                      <p className="text-on-surface-variant text-sm leading-relaxed">Currently, we support SQLite, PostgreSQL, and MySQL. We are constantly working on adding more database integrations.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {activeTab === 'notifications' && (
+                <div className="flex flex-col mt-4 max-w-2xl">
+                  <h2 className="font-display text-headline-sm font-bold text-primary mb-6 flex items-center gap-2"><span className="material-symbols-outlined">notifications</span> Notifications</h2>
+                  <div className="bg-surface-container-low/80 backdrop-blur-md rounded-2xl border border-white/5 p-6 flex flex-col gap-4">
+                    <div className="flex gap-4 items-start pb-4 border-b border-white/5">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0">
+                        <span className="material-symbols-outlined">database</span>
+                      </div>
+                      <div>
+                        <h3 className="text-on-surface font-medium">Database Connected</h3>
+                        <p className="text-on-surface-variant text-sm mt-1">Successfully connected to local SQLite database (demo_v2.db).</p>
+                        <span className="text-xs text-on-surface-variant/50 mt-2 block">Just now</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-4 items-start pb-4 border-b border-white/5">
+                      <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center text-secondary shrink-0">
+                        <span className="material-symbols-outlined">analytics</span>
+                      </div>
+                      <div>
+                        <h3 className="text-on-surface font-medium">Analytics Updated</h3>
+                        <p className="text-on-surface-variant text-sm mt-1">Your dashboard data has been successfully seeded with 500 records.</p>
+                        <span className="text-xs text-on-surface-variant/50 mt-2 block">2 minutes ago</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               {activeTab === 'security' && (
                 <div className="flex flex-col mt-4 max-w-2xl">
                   <h2 className="font-display text-headline-sm font-bold text-primary mb-6 flex items-center gap-2"><span className="material-symbols-outlined">shield</span> Security & Access</h2>
@@ -756,7 +816,7 @@ export default function ChatDashboard() {
               <div className="max-w-[860px] mx-auto pointer-events-auto">
                 <form
                   onSubmit={handleSend}
-                  className="flex items-center gap-2 p-2 rounded-2xl border border-outline backdrop-blur-xl shadow-[0_8px_40px_rgba(0,0,0,0.5)] focus-within:border-primary/40 focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(64,204,183,0.15)] transition-all"
+                  className="flex items-center gap-2 p-2 rounded-2xl border border-outline backdrop-blur-xl shadow-[0_8px_40px_rgba(0,0,0,0.5)] transition-all"
                   style={{ background: 'rgba(28,30,45,0.92)' }}
                 >
                   <input

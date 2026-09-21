@@ -1,6 +1,15 @@
 import { create } from 'zustand'
 
-const generateId = () => Date.now().toString() + Math.random().toString(36).substring(7);
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 const initialChatId = generateId();
 
 const useStore = create((set) => ({
@@ -22,6 +31,21 @@ const useStore = create((set) => ({
   chats: [{ id: initialChatId, title: 'New Chat', messages: [] }],
   activeChatId: initialChatId,
   
+  setChats: (chats) => set((state) => {
+    if (!chats || chats.length === 0) {
+      const newChatId = generateId();
+      return {
+        chats: [{ id: newChatId, title: 'New Chat', messages: [] }],
+        activeChatId: newChatId
+      };
+    }
+    const hasActive = chats.some(c => c.id === state.activeChatId);
+    return {
+      chats,
+      activeChatId: hasActive ? state.activeChatId : chats[0].id
+    };
+  }),
+
   createNewChat: () => set((state) => {
     const newChat = { id: generateId(), title: 'New Chat', messages: [] };
     return {

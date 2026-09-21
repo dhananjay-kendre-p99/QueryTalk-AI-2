@@ -738,115 +738,187 @@ from sqlalchemy import text
 from datetime import datetime, date, timedelta
 
 @router.get("/analytics")
-def get_analytics():
-    try:
-        from core.database import SessionLocal
-        session = SessionLocal()
+def get_analytics(
+    app_db: Session = Depends(get_app_db),
+    payload: dict = Depends(verify_clerk_token),
+):
+    clerk_user_id = payload["sub"]
+    user = _resolve_user(clerk_user_id, app_db)
+    
+    from core.database import _active_connection_id, SessionLocal, get_schema_info, get_dialect_name
+    from sqlalchemy import text
+    from datetime import datetime
+    import json
+    import re
+    
+    if not _active_connection_id:
+        return {"fallback": True, "message": "No active database connection."}
         
-        # Try to fetch sales and users
-        try:
-            sales = session.execute(text("SELECT amount, date, user_id FROM sales")).fetchall()
-            users = session.execute(text("SELECT id, region, segment, acquisition_cost FROM users")).fetchall()
-        except Exception:
+    try:
+        session = SessionLocal()
+    except Exception as e:
+        return {"fallback": True, "message": f"Failed to connect to database: {e}"}
+        
+    schema_info = get_schema_info()
+    dialect = get_dialect_name()
+    
+    # Prompt the LLM to generate standard SQL queries that conform to the target dashboard format
+    system_prompt = f"""You are a data analytics expert. Your task is to analyze a database schema and output a valid JSON containing SQL queries that fetch metrics for an interactive analytics dashboard.
+The user's database dialect is: {dialect}.
+
+The schema of the connected database is:
+{schema_info}
+
+You MUST return a JSON object with the following exact keys:
+1. "totalRevenueQuery": A SQL query that returns a single numeric value (e.g. SUM of transaction/sales amount, or COUNT of main entities if there is no numeric column).
+2. "activeCustomersQuery": A SQL query that returns a single numeric count of active entities (e.g. COUNT of distinct customer IDs, or COUNT of distinct groups/categories).
+3. "monthlySalesQuery": A SQL query that returns a single numeric count of recent transactions (e.g. COUNT of orders in the last 30 days, or COUNT of records created recently).
+4. "growthPctQuery": A SQL query that returns a single numeric percentage value representing growth. If hard to calculate, return a static float.
+5. "growthDataQuery": A SQL query that returns rows with columns: "name_val" (string, representing month/date/category) and "current_val" (numeric, representing value) and "projected_val" (numeric). Max 12 rows.
+6. "marketShareQuery": A SQL query that returns rows with columns: "name_val" (string, representing segment/region/category) and "value_val" (numeric, representing percentage/count). Max 5 rows.
+7. "revenueRegionQuery": A SQL query that returns rows with columns: "name_val" (string, representing region/category) and "value_val" (numeric, representing revenue/count). Max 5 rows.
+8. "customerSegmentsQuery": A SQL query that returns rows with columns: "x_val" (numeric value), "y_val" (numeric value), "z_val" (numeric size value), and "group_val" (string or integer, representing category/segment). Max 100 rows.
+
+Instructions:
+- If the schema represents a sales/business/orders database, write standard business queries on the orders/sales/users tables.
+- If the schema is completely different (e.g., library, employee registry, movies), creatively map the dashboard metrics to the available tables. For example, for an employee database, totalRevenue can be the sum of salaries or count of employees, activeCustomers can be the number of departments, monthlySales can be the number of hires in the last month, growthData can be employee hiring over time, marketShare can be employee count by department, customerSegments can compare experience (x_val) vs salary (y_val).
+- The SQL queries must be valid for the {dialect} dialect.
+- Use simple, standard SQL features. Avoid vendor-specific complex functions.
+- DO NOT use double quotes or backticks to quote identifiers unless absolutely necessary (for instance, to preserve spacing).
+- CRITICAL: "x_val", "y_val", and "z_val" MUST ALWAYS BE numeric columns (such as balances, salaries, ages, transaction counts, sums). NEVER map a string/text column (like market segment or names) to "x_val", "y_val", or "z_val" as this will crash the visualization.
+- Return ONLY a JSON object with the queries. Do NOT return any markdown wrapping (no ```json or ```)."""
+
+    try:
+        from services.llm_orchestrator import llm_orchestrator
+        client = llm_orchestrator.client
+        if not client:
             session.close()
-            # Fallback if standard tables don't exist
-            return {"fallback": True}
+            return {"fallback": True, "message": "Groq client not initialized."}
+            
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": "Generate the SQL queries in JSON format."}
+            ],
+            temperature=0.1,
+            max_tokens=1536
+        )
+        
+        content = response.choices[0].message.content.strip()
+        
+        # Robustly extract JSON using regex
+        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+        if json_match:
+            content = json_match.group(0)
+            
+        queries = json.loads(content)
+        
+        # Execute queries
+        kpis = {}
+        # 1. Total revenue
+        try:
+            kpis["totalRevenue"] = float(session.execute(text(queries["totalRevenueQuery"])).scalar() or 0)
+        except Exception as e:
+            print(f"Error totalRevenueQuery: {e}")
+            kpis["totalRevenue"] = 0.0
+            
+        # 2. Active Customers
+        try:
+            kpis["activeCustomers"] = int(session.execute(text(queries["activeCustomersQuery"])).scalar() or 0)
+        except Exception as e:
+            print(f"Error activeCustomersQuery: {e}")
+            kpis["activeCustomers"] = 0
+            
+        # 3. Monthly Sales
+        try:
+            kpis["monthlySales"] = int(session.execute(text(queries["monthlySalesQuery"])).scalar() or 0)
+        except Exception as e:
+            print(f"Error monthlySalesQuery: {e}")
+            kpis["monthlySales"] = 0
+            
+        # 4. Growth Pct
+        try:
+            kpis["growthPct"] = float(session.execute(text(queries["growthPctQuery"])).scalar() or 0)
+        except Exception as e:
+            print(f"Error growthPctQuery: {e}")
+            kpis["growthPct"] = 0.0
+            
+        # 5. Growth Data
+        growth_data = []
+        try:
+            res = session.execute(text(queries["growthDataQuery"]))
+            keys = [k.lower().replace('"', '') for k in res.keys()]
+            for row in res.fetchall():
+                row_dict = dict(zip(keys, row))
+                growth_data.append({
+                    "name": str(row_dict.get("name_val") or row_dict.get("name") or ""),
+                    "current": float(row_dict.get("current_val") or row_dict.get("current") or 0),
+                    "projected": float(row_dict.get("projected_val") or row_dict.get("projected") or (row_dict.get("current_val") or row_dict.get("current") or 0) * 1.1)
+                })
+        except Exception as e:
+            print(f"Error growthDataQuery: {e}")
+            
+        # 6. Market Share Data
+        market_share_data = []
+        colors = ['#40CCB7', '#df7412', '#00a2e6', '#93000a', '#ffb786']
+        try:
+            res = session.execute(text(queries["marketShareQuery"]))
+            keys = [k.lower().replace('"', '') for k in res.keys()]
+            for idx, row in enumerate(res.fetchall()):
+                row_dict = dict(zip(keys, row))
+                market_share_data.append({
+                    "name": str(row_dict.get("name_val") or row_dict.get("name") or ""),
+                    "value": float(row_dict.get("value_val") or row_dict.get("value") or 0),
+                    "color": colors[idx % len(colors)]
+                })
+        except Exception as e:
+            print(f"Error marketShareQuery: {e}")
+            
+        # 7. Revenue Region Data
+        revenue_region_data = []
+        try:
+            res = session.execute(text(queries["revenueRegionQuery"]))
+            keys = [k.lower().replace('"', '') for k in res.keys()]
+            for row in res.fetchall():
+                row_dict = dict(zip(keys, row))
+                revenue_region_data.append({
+                    "name": str(row_dict.get("name_val") or row_dict.get("name") or ""),
+                    "value": float(row_dict.get("value_val") or row_dict.get("value") or 0)
+                })
+        except Exception as e:
+            print(f"Error revenueRegionQuery: {e}")
+            
+        # 8. Customer Segments Data
+        customer_segments_data = []
+        try:
+            res = session.execute(text(queries["customerSegmentsQuery"]))
+            keys = [k.lower().replace('"', '') for k in res.keys()]
+            for row in res.fetchall():
+                row_dict = dict(zip(keys, row))
+                customer_segments_data.append({
+                    "x": float(row_dict.get("x_val") or row_dict.get("x") or 0),
+                    "y": float(row_dict.get("y_val") or row_dict.get("y") or 0),
+                    "z": float(row_dict.get("z_val") or row_dict.get("z") or 200),
+                    "group": row_dict.get("group_val") or row_dict.get("group") or "Segment"
+                })
+        except Exception as e:
+            print(f"Error customerSegmentsQuery: {e}")
             
         session.close()
         
-        # Aggregate Data in Python to avoid cross-dialect SQL issues
-        total_revenue = sum(s[0] for s in sales) if sales else 0
-        active_customers = len(set(s[2] for s in sales))
-        
-        # Dates
-        today = date.today()
-        thirty_days_ago = today - timedelta(days=30)
-        sixty_days_ago = today - timedelta(days=60)
-        
-        sales_this_month = [s for s in sales if s[1] >= thirty_days_ago]
-        sales_last_month = [s for s in sales if sixty_days_ago <= s[1] < thirty_days_ago]
-        
-        rev_this_month = sum(s[0] for s in sales_this_month)
-        rev_last_month = sum(s[0] for s in sales_last_month)
-        
-        growth_pct = 0
-        if rev_last_month > 0:
-            growth_pct = ((rev_this_month - rev_last_month) / rev_last_month) * 100
-            
-        # Monthly Growth Data (last 12 months)
-        monthly_data = {}
-        for s in sales:
-            month_key = s[1].strftime("%b")
-            if month_key not in monthly_data:
-                monthly_data[month_key] = 0
-            monthly_data[month_key] += s[0]
-            
-        # Ensure ordered months
-        months_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        growth_data = []
-        for m in months_order:
-            if m in monthly_data:
-                growth_data.append({
-                    "name": m,
-                    "current": round(monthly_data[m], 2),
-                    "projected": round(monthly_data[m] * 1.1, 2) # Mock projected
-                })
-        
-        # Market Share & Revenue by Region
-        user_regions = {u[0]: u[1] for u in users}
-        region_revenue = {}
-        for s in sales:
-            r = user_regions.get(s[2], "Unknown")
-            if r not in region_revenue:
-                region_revenue[r] = 0
-            region_revenue[r] += s[0]
-            
-        colors = ['#adc6ff', '#df7412', '#00a2e6', '#93000a', '#ffb786']
-        market_share_data = []
-        revenue_region_data = []
-        color_idx = 0
-        for r, rev in region_revenue.items():
-            market_share_data.append({
-                "name": r,
-                "value": round((rev / total_revenue) * 100 if total_revenue > 0 else 0, 1),
-                "color": colors[color_idx % len(colors)]
-            })
-            revenue_region_data.append({
-                "name": r,
-                "value": round(rev, 2)
-            })
-            color_idx += 1
-            
-        # Customer Segments (Acquisition Cost vs Total User Revenue)
-        user_revs = {}
-        for s in sales:
-            if s[2] not in user_revs:
-                user_revs[s[2]] = 0
-            user_revs[s[2]] += s[0]
-            
-        customer_segments_data = []
-        for u in users:
-            uid, region, segment, acq_cost = u
-            if acq_cost and uid in user_revs:
-                customer_segments_data.append({
-                    "x": round(acq_cost, 2),
-                    "y": round(user_revs[uid], 2),
-                    "z": random.randint(100, 500), # random z size for scatter
-                    "group": segment if segment else 1
-                })
-        
+        # We always return the real database analytics (fallback: False) if the connection is active and queries executed successfully
         return {
             "fallback": False,
-            "kpis": {
-                "totalRevenue": round(total_revenue, 2),
-                "growthPct": round(growth_pct, 1),
-                "activeCustomers": active_customers,
-                "monthlySales": len(sales_this_month)
-            },
+            "kpis": kpis,
             "growthData": growth_data,
             "marketShareData": market_share_data,
             "revenueRegionData": revenue_region_data,
             "customerSegmentsData": customer_segments_data
         }
+        
     except Exception as e:
-        return {"fallback": True, "error": str(e)}
+        print(f"Error in get_analytics: {e}")
+        if 'session' in locals():
+            session.close()
+        return {"fallback": True}
