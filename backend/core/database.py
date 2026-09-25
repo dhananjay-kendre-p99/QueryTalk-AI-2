@@ -141,7 +141,7 @@ def test_engine(connection_string: str) -> str:
             tables = inspector.get_table_names()
             lines = []
             for table in tables[:20]:  # cap at 20 tables
-                cols = [c["name"] for c in inspector.get_columns(table)]
+                cols = [f"{c['name']} ({str(c['type'])})" for c in inspector.get_columns(table)]
                 lines.append(f"  {table} ({', '.join(cols)})")
             return "Tables:\n" + "\n".join(lines) if lines else "No tables found."
     except OperationalError as e:
@@ -159,7 +159,7 @@ def get_schema_info() -> str:
         tables = inspector.get_table_names()
         lines = []
         for table in tables[:30]:
-            cols = [c["name"] for c in inspector.get_columns(table)]
+            cols = [f"{c['name']} ({str(c['type'])})" for c in inspector.get_columns(table)]
             lines.append(f"  {table} ({', '.join(cols)})")
         return "Tables:\n" + "\n".join(lines) if lines else "No tables found."
     except Exception as e:

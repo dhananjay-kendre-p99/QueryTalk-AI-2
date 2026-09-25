@@ -81,7 +81,11 @@ export default function ChatDashboard() {
         role: 'assistant',
         content: res.data.reply,
         sql: res.data.sql,
-        data: res.data.data
+        data: res.data.data,
+        matched_columns: res.data.matched_columns,
+        keyword_matched: res.data.keyword_matched,
+        semantic_matched: res.data.semantic_matched,
+        fallback_used: res.data.fallback_used
       });
     } catch (err) {
       console.error(err);
@@ -360,6 +364,69 @@ export default function ChatDashboard() {
                                                         {msg.content}
                                                     </ReactMarkdown>
                                                 </div>
+                                                
+                                                {/* Matched Columns Panel */}
+                                                {msg.matched_columns && (
+                                                    <div className="mt-3 p-4 rounded-xl border border-white/5 bg-surface-container-low/40 backdrop-blur-md flex flex-col gap-3 font-body-sm text-body-sm">
+                                                        {msg.fallback_used && (
+                                                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300">
+                                                                <span className="material-symbols-outlined text-[18px]">warning</span>
+                                                                <span className="font-semibold text-xs">Low confidence match — using all columns as fallback</span>
+                                                            </div>
+                                                        )}
+                                                        
+                                                        <div className="grid grid-cols-1 gap-2.5">
+                                                            {/* Row 1: Keyword matched */}
+                                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                                                <span className="text-muted-foreground text-xs min-w-[120px] font-medium">Keyword matched:</span>
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {msg.keyword_matched && msg.keyword_matched.length > 0 ? (
+                                                                        msg.keyword_matched.map(col => (
+                                                                            <span key={col} className="px-2 py-0.5 rounded-full text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+                                                                                {col}
+                                                                            </span>
+                                                                        ))
+                                                                    ) : (
+                                                                        <span className="text-muted-foreground/60 text-xs italic">None</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Row 2: Semantic matched */}
+                                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                                                <span className="text-muted-foreground text-xs min-w-[120px] font-medium">Semantic matched:</span>
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {msg.semantic_matched && msg.semantic_matched.length > 0 ? (
+                                                                        msg.semantic_matched.map(item => (
+                                                                            <span key={item.column} className="px-2 py-0.5 rounded-full text-xs font-mono bg-sky-500/10 text-sky-400 border border-sky-500/25 flex items-center gap-1">
+                                                                                <span>{item.column}</span>
+                                                                                <span className="opacity-60 font-semibold">{Math.round((item.score || 0) * 100)}%</span>
+                                                                            </span>
+                                                                        ))
+                                                                    ) : (
+                                                                        <span className="text-muted-foreground/60 text-xs italic">None</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Row 3: Final columns used */}
+                                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 border-t border-white/5 pt-2.5 mt-0.5">
+                                                                <span className="text-muted-foreground text-xs min-w-[120px] font-medium">Final columns used:</span>
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {msg.matched_columns && msg.matched_columns.length > 0 ? (
+                                                                        msg.matched_columns.map(col => (
+                                                                            <span key={col} className="px-2 py-0.5 rounded-full text-xs font-mono bg-purple-500/10 text-purple-400 border border-purple-500/25">
+                                                                                {col}
+                                                                            </span>
+                                                                        ))
+                                                                    ) : (
+                                                                        <span className="text-muted-foreground/60 text-xs italic">None</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 {msg.sql && (
                                                     <div className="rounded-xl overflow-hidden border border-outline shadow-xl mt-1">
                                                         <div className="flex items-center gap-2 px-4 py-2 border-b border-outline bg-background/70">
