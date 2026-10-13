@@ -431,12 +431,12 @@ export default function LandingPage() {
             </Reveal>
 
             {/* Hero image — globe */}
-            <Reveal delay={250} className="w-full max-w-4xl mt-4">
+            {/* <Reveal delay={250} className="w-full max-w-4xl mt-4">
               <div className="relative rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(64,204,183,0.2)', boxShadow: '0 0 80px rgba(64,204,183,0.12)' }}>
                 <img src="/hero_globe.png" alt="QueryTalk AI — Database intelligence visualization" className="w-full h-auto" />
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 60%, #101321 100%)' }} />
               </div>
-            </Reveal>
+            </Reveal> */}
           </div>
         </div>
       </section>

@@ -70,5 +70,84 @@ def run_test():
     assert len(res["data"]) == 2, "Data list should be fetched"
     print("Test 3 Passed!")
 
+    # Case 4: Self-healing query correction
+    llm_orchestrator.generate_sql = MagicMock(return_value="SELECT p.p_manufact FROM part p;")
+    llm_orchestrator.correct_sql = MagicMock(return_value="SELECT p.p_mfgr FROM part p;")
+    
+    # Mock db execution to fail on first attempt, then succeed on second
+    mock_result_correct = MagicMock()
+    mock_result_correct.fetchall.return_value = [("manufacturer_name",)]
+    mock_result_correct.keys.return_value = ["p_mfgr"]
+    
+    mock_db.execute.side_effect = [
+        Exception("invalid identifier 'P.P_MANUFACT'"),
+        mock_result_correct
+    ]
+    
+    llm_orchestrator.summarize_results = MagicMock(return_value="Here is the corrected report.")
+    
+    chat_req = ChatRequest(message="Show me the product manufacturer")
+    res = chat_endpoint(mock_request, chat_req, mock_db)
+    print("\nTest 4 (self-healing query correction):")
+    print("Response:", res)
+    assert res["sql"] == "SELECT p.p_mfgr FROM part p;", "SQL should match corrected query"
+    assert res["reply"] == "Here is the corrected report.", "Reply should match LLM summary"
+    assert len(res["data"]) == 1, "Data list should be fetched from corrected execution"
+    print("Test 4 Passed!")
+
+    # Case 5: Auto-reconnect active database connection if reset to bootstrap
+    import core.security as security_module
+    import routes.chat as chat_module
+    
+    # Mock token verification
+    mock_request.headers = {
+        "X-API-Key": "dummy-key",
+        "Authorization": "Bearer dummy_token"
+    }
+    security_module.verify_clerk_token = MagicMock(return_value={"sub": "clerk_user_123"})
+    
+    # Mock database models and decryption
+    import core.database as db_core
+    from core.models import User, DatabaseConnection
+    
+    mock_app_db = MagicMock()
+    db_core.AppSessionLocal = MagicMock(return_value=mock_app_db)
+    
+    mock_user = User(id="user_uuid_123", clerk_user_id="clerk_user_123")
+    mock_app_db.query.return_value.filter.return_value.first.side_effect = [
+        mock_user,  # First query: User lookup
+        DatabaseConnection(
+            user_id="user_uuid_123",
+            is_active=True,
+            connection_string_enc="enc_snowflake_conn"
+        )  # Second query: DatabaseConnection lookup
+    ]
+    
+    import core.encryption as encryption_module
+    encryption_module.decrypt_password = MagicMock(return_value="snowflake://username:password@account/db")
+    
+    # Mock bootstrap engine (containing demo.db in url)
+    mock_bootstrap_engine = MagicMock()
+    mock_bootstrap_engine.url = "sqlite:///./demo.db"
+    db_core._user_engine = mock_bootstrap_engine
+    
+    # Mock set_engine
+    db_core.set_engine = MagicMock()
+    
+    # Mock chat execution dependencies for test 5
+    llm_orchestrator.generate_sql = MagicMock(return_value="SELECT 1;")
+    mock_result_reconnected = MagicMock()
+    mock_result_reconnected.fetchall.return_value = [(1,)]
+    mock_result_reconnected.keys.return_value = ["one"]
+    mock_db.execute = MagicMock(return_value=mock_result_reconnected)
+    db_core.SessionLocal = MagicMock(return_value=mock_db)
+    
+    chat_req = ChatRequest(message="Test auto-reconnect")
+    res = chat_endpoint(mock_request, chat_req, mock_db)
+    print("\nTest 5 (auto-reconnect active database connection):")
+    print("Response:", res)
+    db_core.set_engine.assert_called_once_with("snowflake://username:password@account/db")
+    print("Test 5 Passed!")
+
 if __name__ == "__main__":
     run_test()
