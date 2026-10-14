@@ -165,37 +165,7 @@ export default function ChatDashboard() {
   };
   
   const renderTable = (data) => {
-    if (!data || data.length === 0) return null;
-    const keys = Object.keys(data[0]);
-    
-    return (
-      <div className="bg-surface-container-low/60 backdrop-blur-md rounded-xl border border-white/5 overflow-hidden mt-4">
-        <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-[18px]">table_chart</span>
-            <span className="font-body-sm text-body-sm font-medium text-on-surface">Data Preview</span>
-        </div>
-        <div className="overflow-x-auto">
-            <table className="w-full text-left font-body-sm text-body-sm">
-                <thead>
-                    <tr className="border-b border-white/5 bg-surface-container/30">
-                        {keys.map(k => (
-                            <th key={k} className="px-4 py-3 font-medium text-on-surface-variant">{k}</th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                    {data.slice(0, 10).map((row, i) => (
-                        <tr key={i} className="hover:bg-white/[0.02] transition-colors">
-                            {keys.map(k => (
-                                <td key={k} className="px-4 py-3 text-on-surface">{row[k]}</td>
-                            ))}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-      </div>
-    );
+    return <PreviewTable data={data} />;
   };
 
   return (
@@ -366,7 +336,7 @@ export default function ChatDashboard() {
                                                             <span className="w-2.5 h-2.5 rounded-full bg-error/60" />
                                                             <span className="w-2.5 h-2.5 rounded-full bg-amber-400/60" />
                                                             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/60" />
-                                                            <span className="ml-2 font-mono text-[11px] text-muted-foreground">executed.sql</span>
+                                                            <span className="ml-2 font-mono text-[11px] text-muted-foreground">SQL Query</span>
                                                         </div>
                                                         <div className="p-4 font-mono text-[12px] text-primary/80 leading-relaxed overflow-x-auto bg-black/40">
                                                             <pre><code>{msg.sql}</code></pre>
@@ -849,6 +819,100 @@ export default function ChatDashboard() {
         )}
       </div>
     </div>
+    </div>
+  );
+}
+
+function PreviewTable({ data }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  if (!data || data.length === 0) return null;
+  const keys = Object.keys(data[0]);
+
+  const totalRows = data.length;
+  const totalPages = Math.ceil(totalRows / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalRows);
+  const paginatedData = data.slice(startIndex, endIndex);
+
+  return (
+    <div className="bg-surface-container-low/60 backdrop-blur-md rounded-xl border border-white/5 overflow-hidden mt-4">
+      <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-primary text-[18px]">table_chart</span>
+          <span className="font-body-sm text-body-sm font-medium text-on-surface">Data Preview</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="bg-[#1C1E2D] border border-white/10 rounded-lg px-2 py-1 text-on-surface focus:outline-none focus:border-primary text-xs"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+          <span className="text-xs font-mono text-muted-foreground bg-white/5 px-2.5 py-0.5 rounded-full border border-white/10">
+            {totalRows} row{totalRows !== 1 ? 's' : ''}
+          </span>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left font-body-sm text-body-sm">
+          <thead>
+            <tr className="border-b border-white/5 bg-surface-container/30">
+              {keys.map(k => (
+                <th key={k} className="px-4 py-3 font-medium text-on-surface-variant">{k}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {paginatedData.map((row, i) => (
+              <tr key={i} className="hover:bg-white/[0.02] transition-colors">
+                {keys.map(k => (
+                  <td key={k} className="px-4 py-3 text-on-surface">{row[k]}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination Bar */}
+      {totalPages > 1 && (
+        <div className="px-4 py-3 border-t border-white/5 flex items-center justify-between bg-surface-container/10 font-body-sm text-xs text-muted-foreground">
+          <div>
+            Showing <span className="text-on-surface font-medium">{startIndex + 1}-{endIndex}</span> of <span className="text-on-surface font-medium">{totalRows}</span> rows
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="w-8 h-8 rounded-lg flex items-center justify-center border border-white/10 bg-white/5 text-on-surface hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all"
+            >
+              <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+            </button>
+            <span className="font-mono">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="w-8 h-8 rounded-lg flex items-center justify-center border border-white/10 bg-white/5 text-on-surface hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all"
+            >
+              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
