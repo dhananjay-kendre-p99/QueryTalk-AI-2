@@ -135,6 +135,14 @@ def build_connection_string(req: DBConnectionRequest) -> str:
         return f"postgresql://{req.username}:{req.password}@{req.host}{port_str}/{req.db_name}"
     elif db_type == "mysql":
         return f"mysql+pymysql://{req.username}:{req.password}@{req.host}{port_str}/{req.db_name}"
+    elif db_type == "mysql":
+        return f"mysql+pymysql://{req.username}:{req.password}@{req.host}{port_str}/{req.db_name}"
+    elif db_type == "snowflake":
+        # Snowflake URL format:
+        # snowflake://<username>:<password>@<account_identifier>/<database_name>/<schema_name>?warehouse=<warehouse_name>&role=<role_name>
+        # mapping 'host' to account_identifier
+        return f"snowflake://{req.username}:{req.password}@{req.host}/{req.db_name}"
+
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported database type: {req.db_type}")
 
@@ -665,7 +673,7 @@ from sqlalchemy import text
 from datetime import datetime, date, timedelta
 
 @router.get("/analytics")
-def get_analytics(current_user: dict = Depends(verify_clerk_token)):
+def get_analytics():
     try:
         from core.database import SessionLocal
         session = SessionLocal()
