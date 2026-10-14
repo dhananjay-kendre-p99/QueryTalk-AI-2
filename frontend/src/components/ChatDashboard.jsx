@@ -45,7 +45,7 @@ export default function ChatDashboard() {
         setActiveConnectionId(connectionId);
       } catch (err) {
         // Reconnect failed — redirect back to databases page
-        navigate('/');
+        navigate('/databases');
       } finally {
         setReconnecting(false);
       }
@@ -165,77 +165,72 @@ export default function ChatDashboard() {
   };
   
   const renderTable = (data) => {
-    if (!data || data.length === 0) return null;
-    const keys = Object.keys(data[0]);
-    
-    return (
-      <div className="bg-surface-container-low/60 backdrop-blur-md rounded-xl border border-white/5 overflow-hidden mt-4">
-        <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-[18px]">table_chart</span>
-            <span className="font-body-sm text-body-sm font-medium text-on-surface">Data Preview</span>
-        </div>
-        <div className="overflow-x-auto">
-            <table className="w-full text-left font-body-sm text-body-sm">
-                <thead>
-                    <tr className="border-b border-white/5 bg-surface-container/30">
-                        {keys.map(k => (
-                            <th key={k} className="px-4 py-3 font-medium text-on-surface-variant">{k}</th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                    {data.slice(0, 10).map((row, i) => (
-                        <tr key={i} className="hover:bg-white/[0.02] transition-colors">
-                            {keys.map(k => (
-                                <td key={k} className="px-4 py-3 text-on-surface">{row[k]}</td>
-                            ))}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-      </div>
-    );
+    return <PreviewTable data={data} />;
   };
 
   return (
-    <div className="font-body-sm text-body-sm antialiased fixed inset-0 flex flex-col overflow-hidden bg-background">
-      {/* Reconnecting overlay — shown on page refresh while engine is re-initialising */}
+    <div className="antialiased fixed inset-0 flex flex-col overflow-hidden bg-background">
+      {/* Reconnecting overlay */}
       {reconnecting && (
-        <div className="absolute inset-0 z-[9999] bg-background/90 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+        <div className="absolute inset-0 z-[9999] bg-background/92 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
           <div className="w-12 h-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
-          <p className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-widest">Connecting to database…</p>
+          <p className="font-mono text-xs text-muted-foreground uppercase tracking-widest">Reconnecting to database…</p>
         </div>
       )}
-      {/* Top Navbar */}
-      <header className="w-full bg-surface/30 backdrop-blur-md border-b border-white/5 flex justify-between items-center h-16 px-4 md:px-margin-desktop z-50 shrink-0">
-        <div className="flex items-center gap-4">
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center">
-            <span className="material-symbols-outlined">{sidebarOpen ? 'close' : 'menu'}</span>
+
+      {/* ── Top Navbar ─────────────────────────────────────────────────── */}
+      <header className="w-full bg-surface/70 backdrop-blur-xl border-b border-outline flex justify-between items-center h-14 px-4 md:px-6 z-50 shrink-0">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="md:hidden w-9 h-9 flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-white/5 rounded-lg transition-all"
+          >
+            <span className="material-symbols-outlined text-[22px]">{sidebarOpen ? 'close' : 'menu'}</span>
           </button>
-          <div className="flex flex-col">
-            <h1 className="font-display text-title-lg md:text-headline-sm font-bold text-primary tracking-tight leading-none">QueryTalk AI</h1>
-            <p className="hidden md:block font-body-sm text-body-sm text-on-surface-variant mt-1 leading-none">Enterprise Tier</p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center">
+              <span className="material-symbols-outlined text-primary text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>neurology</span>
+            </div>
+            <div className="leading-tight">
+              <h1 className="font-display font-bold text-white text-[14px] leading-none">QueryTalk AI</h1>
+              <p className="hidden md:block text-[10px] font-mono text-muted-foreground tracking-widest uppercase leading-none mt-0.5">Enterprise Tier</p>
+            </div>
           </div>
-          
         </div>
-        <div className="flex items-center gap-2 md:gap-4">
-          <div className="hidden md:flex items-center gap-2 bg-surface-container-highest px-3 py-1.5 rounded-full border border-white/10">
-            <span className="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(137,206,255,0.8)]"></span>
-            <span className="font-label-mono text-label-mono text-secondary truncate max-w-[150px]">Connected: {dbName || 'demo.db'}</span>
+
+        <div className="flex items-center gap-2 md:gap-3">
+          {/* DB status badge */}
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/8 border border-primary/20">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <span className="font-mono text-[11px] text-primary truncate max-w-[160px]">{dbName || 'demo.db'}</span>
           </div>
-          <div className="hidden md:block w-px h-6 bg-white/10 mx-2"></div>
-          <button onClick={() => setActiveTab('notifications')} className={`hidden sm:block hover:text-primary transition-colors ${activeTab === 'notifications' ? 'text-primary' : 'text-on-surface-variant'}`}>
-            <span className="material-symbols-outlined" style={{fontVariationSettings: activeTab === 'notifications' ? "'FILL' 1" : "'FILL' 0"}}>notifications</span>
+
+          <div className="hidden md:block w-px h-5 bg-outline mx-1" />
+
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={`hidden sm:flex w-8 h-8 rounded-lg items-center justify-center transition-all hover:bg-white/5 ${activeTab === 'notifications' ? 'text-primary' : 'text-muted-foreground'}`}
+          >
+            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: activeTab === 'notifications' ? "'FILL' 1" : "'FILL' 0" }}>notifications</span>
           </button>
-          <button onClick={() => setActiveTab('security')} className={`hidden sm:block hover:text-primary transition-colors ${activeTab === 'security' ? 'text-primary' : 'text-on-surface-variant'}`}>
-            <span className="material-symbols-outlined" style={{fontVariationSettings: activeTab === 'security' ? "'FILL' 1" : "'FILL' 0"}}>shield</span>
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`hidden sm:flex w-8 h-8 rounded-lg items-center justify-center transition-all hover:bg-white/5 ${activeTab === 'security' ? 'text-primary' : 'text-muted-foreground'}`}
+          >
+            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: activeTab === 'security' ? "'FILL' 1" : "'FILL' 0" }}>shield</span>
           </button>
-          <button onClick={() => navigate('/')} className="bg-primary text-on-primary font-medium font-body-sm text-body-sm px-3 md:px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-[0_0_15px_rgba(173,198,255,0.2)] whitespace-nowrap">
-            Switch DB
+
+          <button
+            onClick={() => navigate('/databases')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all glow-ring"
+            style={{ background: 'rgba(64,204,183,0.12)', border: '1px solid rgba(64,204,183,0.4)', color: '#40CCB7', fontFamily: "'Space Grotesk', sans-serif" }}
+          >
+            <span className="material-symbols-outlined text-[15px]">swap_horiz</span>
+            <span className="hidden sm:inline">Switch DB</span>
           </button>
-          <div className="ml-1 md:ml-2 w-8 h-8 rounded-full overflow-hidden border border-white/20 shrink-0">
-            <img alt="User Avatar" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlUlP37Kr7hG9AMroagV09jBtw_oQkciSuV9RfKSHQdcqn3CSaDNtcf5AjH2kZcjyoniZavtoNE1XpLBWV4HYDBwDB7Vlg6jiQ-OYU8WmPeTVAy25L54yk1c0SXK_HhbVxdlOH2dogkttXeBlW3Xj-0j3zAHT9pUqNsNV3uoyfKT_b9-CLpNQJ_J-fSjfua2RdUyZsbmsP3xYNLX231W2T5Za78gG9zVHwFssV4lqpB5P52JVqxIToxvJagzvZNgsP8GNGuYGQOUR_" />
+
+          <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-outline shrink-0">
+            <img alt="User" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlUlP37Kr7hG9AMroagV09jBtw_oQkciSuV9RfKSHQdcqn3CSaDNtcf5AjH2kZcjyoniZavtoNE1XpLBWV4HYDBwDB7Vlg6jiQ-OYU8WmPeTVAy25L54yk1c0SXK_HhbVxdlOH2dogkttXeBlW3Xj-0j3zAHT9pUqNsNV3uoyfKT_b9-CLpNQJ_J-fSjfua2RdUyZsbmsP3xYNLX231W2T5Za78gG9zVHwFssV4lqpB5P52JVqxIToxvJagzvZNgsP8GNGuYGQOUR_" />
           </div>
         </div>
       </header>
@@ -246,55 +241,65 @@ export default function ChatDashboard() {
           <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden" onClick={() => setSidebarOpen(false)}></div>
         )}
         
-        {/* Sidebar */}
-        <aside className={`absolute md:static top-0 left-0 h-full w-[280px] bg-surface-container-low/95 md:bg-surface-container-low/40 backdrop-blur-xl border-r border-white/10 shadow-2xl shadow-primary/5 flex flex-col p-4 md:p-gutter z-40 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-          <div className="md:hidden mb-6 pl-2 pt-2">
-            <p className="font-body-sm text-body-sm text-on-surface-variant">Enterprise Tier</p>
-          </div>
-          <nav className="flex-1 flex flex-col gap-2 mt-2">
-            <button onClick={() => { createNewChat(); setActiveTab('chat'); setSidebarOpen(false); }} className="flex items-center justify-center gap-2 px-4 py-3 mb-2 rounded-xl bg-primary text-on-primary font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all active:scale-95 w-full">
-                <span className="material-symbols-outlined font-bold">add</span>
-                New Chat
-            </button>
-            <a onClick={(e) => { e.preventDefault(); setActiveTab('analytics'); setSidebarOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-full transition-colors duration-200 active:scale-95 transition-transform ${activeTab === 'analytics' ? 'bg-secondary-container text-on-secondary-container font-medium' : 'text-on-surface-variant hover:bg-surface-variant/50'}`} href="#">
-            <span className="material-symbols-outlined text-label-mono" style={{fontVariationSettings: activeTab === 'analytics' ? "'FILL' 1" : "'FILL' 0"}}>dashboard</span>
-            <span className="font-body-lg text-body-lg">Analytics</span>
-            </a>
-            <a onClick={(e) => { e.preventDefault(); setActiveTab('chat'); setSidebarOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-full transition-colors duration-200 active:scale-95 transition-transform ${activeTab === 'chat' ? 'bg-secondary-container text-on-secondary-container font-medium' : 'text-on-surface-variant hover:bg-surface-variant/50'}`} href="#">
-            <span className="material-symbols-outlined text-label-mono" style={{fontVariationSettings: activeTab === 'chat' ? "'FILL' 1" : "'FILL' 0"}}>terminal</span>
-            <span className="font-body-lg text-body-lg">SQL Chat</span>
-            </a>
-            <a onClick={(e) => { e.preventDefault(); setActiveTab('databases'); setSidebarOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-full transition-colors duration-200 active:scale-95 transition-transform ${activeTab === 'databases' ? 'bg-secondary-container text-on-secondary-container font-medium' : 'text-on-surface-variant hover:bg-surface-variant/50'}`} href="#">
-            <span className="material-symbols-outlined text-label-mono" style={{fontVariationSettings: activeTab === 'databases' ? "'FILL' 1" : "'FILL' 0"}}>database</span>
-            <span className="font-body-lg text-body-lg">Databases</span>
-            </a>
-            <a onClick={(e) => { e.preventDefault(); setActiveTab('tables'); setSidebarOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-full transition-colors duration-200 active:scale-95 transition-transform ${activeTab === 'tables' ? 'bg-secondary-container text-on-secondary-container font-medium' : 'text-on-surface-variant hover:bg-surface-variant/50'}`} href="#">
-            <span className="material-symbols-outlined text-label-mono" style={{fontVariationSettings: activeTab === 'tables' ? "'FILL' 1" : "'FILL' 0"}}>table_chart</span>
-            <span className="font-body-lg text-body-lg">Tables</span>
-            </a>
-            <a onClick={(e) => { e.preventDefault(); setActiveTab('history'); setSidebarOpen(false); }} className={`flex items-center gap-3 px-4 py-3 rounded-full transition-colors duration-200 active:scale-95 transition-transform ${activeTab === 'history' ? 'bg-secondary-container text-on-secondary-container font-medium' : 'text-on-surface-variant hover:bg-surface-variant/50'}`} href="#">
-            <span className="material-symbols-outlined text-label-mono" style={{fontVariationSettings: activeTab === 'history' ? "'FILL' 1" : "'FILL' 0"}}>history</span>
-            <span className="font-body-lg text-body-lg">History</span>
-            </a>
+        {/* ── Sidebar ──────────────────────────────────────────────────── */}
+        <aside className={`absolute md:static top-0 left-0 h-full w-[256px] bg-surface border-r border-outline backdrop-blur-xl shadow-[4px_0_32px_rgba(0,0,0,0.3)] flex flex-col p-4 z-40 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+
+          {/* New Chat CTA */}
+          <button
+            onClick={() => { createNewChat(); setActiveTab('chat'); setSidebarOpen(false); }}
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 mb-5 rounded-xl text-sm font-semibold transition-all glow-ring"
+            style={{ background: 'rgba(64,204,183,0.15)', border: '1px solid rgba(64,204,183,0.45)', color: '#40CCB7', fontFamily: "'Space Grotesk', sans-serif" }}
+          >
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            New Chat
+          </button>
+
+          {/* Primary nav */}
+          <nav className="flex-1 flex flex-col gap-0.5">
+            {[
+              { id: 'analytics', icon: 'dashboard',   label: 'Analytics' },
+              { id: 'chat',      icon: 'terminal',     label: 'SQL Chat' },
+              { id: 'databases', icon: 'database',     label: 'Databases' },
+              { id: 'tables',    icon: 'table_chart',  label: 'Tables' },
+              { id: 'history',   icon: 'history',      label: 'History' },
+            ].map(item => (
+              <button
+                key={item.id}
+                onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
+                className={`nav-item w-full text-left ${activeTab === item.id ? 'active' : ''}`}
+              >
+                <span className="material-symbols-outlined text-[19px]" style={{ fontVariationSettings: activeTab === item.id ? "'FILL' 1" : "'FILL' 0" }}>{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
           </nav>
-<div className="mt-auto flex flex-col gap-4">
-<button onClick={handleLogout} className="w-full py-3 px-4 rounded-xl bg-primary-container/20 text-primary border border-primary/30 font-medium hover:bg-primary-container/30 transition-all active:scale-95">
-                Logout
+
+          {/* Bottom section */}
+          <div className="mt-4 pt-4 border-t border-outline flex flex-col gap-0.5">
+            {[
+              { id: 'settings', icon: 'settings',     label: 'Settings' },
+              { id: 'support',  icon: 'help_outline',  label: 'Support' },
+            ].map(item => (
+              <button
+                key={item.id}
+                onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
+                className={`nav-item w-full text-left ${activeTab === item.id ? 'active' : ''}`}
+              >
+                <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: activeTab === item.id ? "'FILL' 1" : "'FILL' 0" }}>{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
+            <button
+              onClick={handleLogout}
+              className="nav-item w-full text-left mt-1 text-error/70 hover:text-error hover:bg-error/8"
+            >
+              <span className="material-symbols-outlined text-[18px]">logout</span>
+              Sign Out
             </button>
-<div className="border-t border-white/5 pt-4 flex flex-col gap-1">
-<a onClick={(e) => { e.preventDefault(); setActiveTab('settings'); setSidebarOpen(false); }} className={`flex items-center gap-3 px-4 py-2 rounded-full transition-colors ${activeTab === 'settings' ? 'text-primary bg-primary/10 font-medium' : 'text-on-surface-variant hover:text-primary'}`} href="#">
-<span className="material-symbols-outlined text-label-mono text-[20px]" style={{fontVariationSettings: activeTab === 'settings' ? "'FILL' 1" : "'FILL' 0"}}>settings</span>
-<span className="font-body-sm text-body-sm">Settings</span>
-</a>
-<a onClick={(e) => { e.preventDefault(); setActiveTab('support'); setSidebarOpen(false); }} className={`flex items-center gap-3 px-4 py-2 rounded-full transition-colors ${activeTab === 'support' ? 'text-primary bg-primary/10 font-medium' : 'text-on-surface-variant hover:text-primary'}`} href="#">
-<span className="material-symbols-outlined text-label-mono text-[20px]" style={{fontVariationSettings: activeTab === 'support' ? "'FILL' 1" : "'FILL' 0"}}>help_outline</span>
-<span className="font-body-sm text-body-sm">Support</span>
-</a>
-</div>
-</div>
-</aside>
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col relative h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-background to-background overflow-hidden w-full">
+          </div>
+        </aside>
+        {/* ── Main Content Area ────────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col relative h-full overflow-hidden w-full" style={{ background: 'radial-gradient(ellipse 60% 40% at 80% 0%, rgba(64,204,183,0.04) 0%, transparent 70%), #101321' }}>
           <main className="flex-1 overflow-y-auto pb-32 scroll-smooth">
             <div className="max-w-[1000px] mx-auto w-full px-gutter pt-8 flex flex-col gap-8">
                 {activeTab === 'chat' && (
@@ -307,33 +312,33 @@ export default function ChatDashboard() {
                             </div>
                         ) : (
                             chatHistory.map((msg, idx) => (
-                                <div key={idx}>
+                                <div key={idx} className="animate-fade-up">
                                     {msg.role === 'user' ? (
-                                        <div className="flex justify-end mb-8">
-                                            <div className="bg-surface-container-highest text-on-surface px-6 py-4 rounded-2xl rounded-tr-sm max-w-[80%] border border-white/5 shadow-lg">
-                                                <p className="font-body-lg text-body-lg">{msg.content}</p>
+                                        <div className="flex justify-end mb-6">
+                                            <div className="text-white px-5 py-3.5 rounded-2xl rounded-tr-sm max-w-[75%] text-sm leading-relaxed shadow-lg" style={{ background: '#1C1E2D', border: '1px solid #2A2D3D' }}>
+                                                {msg.content}
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex items-start gap-4 max-w-[90%] mb-8">
-                                            <div className="w-10 h-10 rounded-xl bg-primary-container/20 flex items-center justify-center border border-primary/20 shrink-0">
-                                                <span className="material-symbols-outlined text-primary" style={{fontVariationSettings: "'FILL' 1"}}>neurology</span>
+                                        <div className="flex items-start gap-3 max-w-[88%] mb-6">
+                                            <div className="w-8 h-8 rounded-xl bg-primary/12 border border-primary/25 flex items-center justify-center shrink-0 mt-0.5">
+                                                <span className="material-symbols-outlined text-primary text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>neurology</span>
                                             </div>
-                                            <div className="flex flex-col gap-4 w-full">
-                                                <div className="text-on-surface font-body-lg text-body-lg pt-2 markdown-content">
+                                            <div className="flex flex-col gap-3 w-full min-w-0">
+                                                <div className="text-white/90 text-sm leading-relaxed markdown-content pt-1">
                                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                                         {msg.content}
                                                     </ReactMarkdown>
                                                 </div>
                                                 {msg.sql && (
-                                                    <div className="bg-[#0f1526] rounded-xl border border-white/10 overflow-hidden flex flex-col shadow-xl mt-2">
-                                                        <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-surface-container/50">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="material-symbols-outlined text-outline text-label-mono text-[16px]">code</span>
-                                                                <span className="font-label-mono text-label-mono text-outline">Executed SQL</span>
-                                                            </div>
+                                                    <div className="rounded-xl overflow-hidden border border-outline shadow-xl mt-1">
+                                                        <div className="flex items-center gap-2 px-4 py-2 border-b border-outline bg-background/70">
+                                                            <span className="w-2.5 h-2.5 rounded-full bg-error/60" />
+                                                            <span className="w-2.5 h-2.5 rounded-full bg-amber-400/60" />
+                                                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/60" />
+                                                            <span className="ml-2 font-mono text-[11px] text-muted-foreground">SQL Query</span>
                                                         </div>
-                                                        <div className="p-4 font-label-mono text-label-mono text-secondary/90 leading-relaxed overflow-x-auto">
+                                                        <div className="p-4 font-mono text-[12px] text-primary/80 leading-relaxed overflow-x-auto bg-black/40">
                                                             <pre><code>{msg.sql}</code></pre>
                                                         </div>
                                                     </div>
@@ -348,14 +353,14 @@ export default function ChatDashboard() {
                         )}
                         
                         {loading && (
-                            <div className="flex items-start gap-4 max-w-[90%]">
-                                <div className="w-10 h-10 rounded-xl bg-primary-container/20 flex items-center justify-center border border-primary/20 shrink-0">
-                                    <span className="material-symbols-outlined text-primary" style={{fontVariationSettings: "'FILL' 1"}}>neurology</span>
+                            <div className="flex items-start gap-3 max-w-[88%]">
+                                <div className="w-8 h-8 rounded-xl bg-primary/12 border border-primary/25 flex items-center justify-center shrink-0">
+                                    <span className="material-symbols-outlined text-primary text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>neurology</span>
                                 </div>
-                                <div className="flex items-center gap-2 h-10 px-4 bg-surface-container-low/60 backdrop-blur-md rounded-xl border border-white/5 w-fit">
-                                    <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce"></span>
-                                    <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{animationDelay: '0.2s'}}></span>
-                                    <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{animationDelay: '0.4s'}}></span>
+                                <div className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-outline w-fit" style={{ background: '#1C1E2D' }}>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-primary/70 animate-bounce" />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-primary/70 animate-bounce" style={{ animationDelay: '0.18s' }} />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-primary/70 animate-bounce" style={{ animationDelay: '0.36s' }} />
                                 </div>
                             </div>
                         )}
@@ -365,17 +370,20 @@ export default function ChatDashboard() {
 
                 {activeTab === 'analytics' && (<AnalyticsDashboard />)}
                 {activeTab === 'databases' && (
-                    <div className="flex flex-col items-center justify-center mt-20 text-on-surface-variant/50">
-                        <span className="material-symbols-outlined text-[64px] mb-4 text-primary/30">database</span>
-                        <p className="font-body-lg text-body-lg text-on-surface">Connected Databases</p>
-                        <p className="font-body-sm text-body-sm mt-2">Manage your data sources here.</p>
-                        <div className="mt-8 w-full max-w-md bg-surface-container-low/60 backdrop-blur-md rounded-xl border border-white/5 p-4 flex items-center gap-4">
-                            <span className="material-symbols-outlined text-secondary text-3xl">database</span>
-                            <div className="flex-1">
-                                <h3 className="text-body-lg font-medium text-on-surface">{dbName || 'demo.db'}</h3>
-                                <p className="text-body-sm text-on-surface-variant">Connected</p>
+                    <div className="flex flex-col mt-4">
+                        <h2 className="font-display text-xl font-bold text-white mb-5">Connected Databases</h2>
+                        <div className="flex items-center gap-4 p-5 rounded-2xl border border-outline hover:border-primary/30 transition-all" style={{ background: '#1C1E2D' }}>
+                            <div className="w-11 h-11 rounded-xl bg-primary/12 border border-primary/25 flex items-center justify-center shrink-0">
+                                <span className="material-symbols-outlined text-primary text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>database</span>
                             </div>
-                            <span className="w-3 h-3 rounded-full bg-secondary shadow-[0_0_8px_rgba(137,206,255,0.8)]"></span>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-display font-semibold text-white text-sm">{dbName || 'demo.db'}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">Active connection</p>
+                            </div>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-primary/10 border border-primary/25 text-primary">
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                Connected
+                            </span>
                         </div>
                     </div>
                 )}
@@ -776,32 +784,135 @@ export default function ChatDashboard() {
         </main>
         
         {activeTab === 'chat' && (
-            <div className="absolute bottom-0 left-0 w-full px-4 md:px-margin-desktop pb-6 md:pb-8 pt-12 bg-gradient-to-t from-background via-background/95 to-transparent pointer-events-none">
-                <div className="max-w-[1000px] mx-auto pointer-events-auto">
-                    <form onSubmit={handleSend} className="bg-surface-container-highest/80 backdrop-blur-xl border border-white/10 rounded-full flex items-center p-2 shadow-[0_8px_32px_rgba(0,0,0,0.4)] ring-1 ring-primary/5 focus-within:ring-primary/30 transition-all">
-                        <button type="button" className="w-10 h-10 flex items-center justify-center text-outline hover:text-primary transition-colors shrink-0">
-                            <span className="material-symbols-outlined">add_circle</span>
-                        </button>
-                        <input 
-                            type="text" 
-                            value={input} 
-                            onChange={(e) => setInput(e.target.value)} 
+            <div className="absolute bottom-0 left-0 w-full px-4 md:px-8 pb-5 md:pb-7 pt-14 bg-gradient-to-t from-background via-background/90 to-transparent pointer-events-none">
+                <div className="max-w-[860px] mx-auto pointer-events-auto">
+                    <form
+                        onSubmit={handleSend}
+                        className="flex items-center gap-2 p-2 rounded-2xl border border-outline backdrop-blur-xl shadow-[0_8px_40px_rgba(0,0,0,0.5)] focus-within:border-primary/40 focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(64,204,183,0.15)] transition-all"
+                        style={{ background: 'rgba(28,30,45,0.92)' }}
+                    >
+                        <input
+                            id="chat-input"
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
                             disabled={loading}
-                            className="bg-transparent border-none focus:ring-0 text-on-surface font-body-lg text-body-lg placeholder-outline w-full px-2" 
-                            placeholder="Ask anything about your data..." 
+                            className="flex-1 bg-transparent border-none focus:ring-0 text-white text-sm placeholder:text-muted-foreground pl-3 pr-2"
+                            placeholder="Ask anything about your data…"
+                            autoComplete="off"
                         />
-                        <button type="submit" disabled={loading || !input.trim()} className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary hover:bg-primary/90 transition-colors shrink-0 shadow-[0_0_15px_rgba(173,198,255,0.3)] disabled:opacity-50">
-                            <span className="material-symbols-outlined" style={{fontVariationSettings: "'FILL' 1", fontSize: "20px"}}>send</span>
+                        <button
+                            type="submit"
+                            disabled={loading || !input.trim()}
+                            id="chat-send-btn"
+                            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed glow-ring"
+                            style={{ background: 'rgba(64,204,183,0.25)', border: '1px solid #40CCB7', color: '#40CCB7' }}
+                        >
+                            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>send</span>
                         </button>
                     </form>
-                    <div className="text-center mt-3">
-                        <span className="font-label-mono text-label-mono text-on-surface-variant/60">QueryTalk AI can make mistakes. Consider verifying critical data.</span>
-                    </div>
+                    <p className="text-center mt-2 text-[11px] font-mono text-muted-foreground/50">
+                        QueryTalk AI may make mistakes — verify critical data independently.
+                    </p>
                 </div>
             </div>
         )}
       </div>
     </div>
+    </div>
+  );
+}
+
+function PreviewTable({ data }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  if (!data || data.length === 0) return null;
+  const keys = Object.keys(data[0]);
+
+  const totalRows = data.length;
+  const totalPages = Math.ceil(totalRows / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalRows);
+  const paginatedData = data.slice(startIndex, endIndex);
+
+  return (
+    <div className="bg-surface-container-low/60 backdrop-blur-md rounded-xl border border-white/5 overflow-hidden mt-4">
+      <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-primary text-[18px]">table_chart</span>
+          <span className="font-body-sm text-body-sm font-medium text-on-surface">Data Preview</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="bg-[#1C1E2D] border border-white/10 rounded-lg px-2 py-1 text-on-surface focus:outline-none focus:border-primary text-xs"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+          <span className="text-xs font-mono text-muted-foreground bg-white/5 px-2.5 py-0.5 rounded-full border border-white/10">
+            {totalRows} row{totalRows !== 1 ? 's' : ''}
+          </span>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left font-body-sm text-body-sm">
+          <thead>
+            <tr className="border-b border-white/5 bg-surface-container/30">
+              {keys.map(k => (
+                <th key={k} className="px-4 py-3 font-medium text-on-surface-variant">{k}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {paginatedData.map((row, i) => (
+              <tr key={i} className="hover:bg-white/[0.02] transition-colors">
+                {keys.map(k => (
+                  <td key={k} className="px-4 py-3 text-on-surface">{row[k]}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination Bar */}
+      {totalPages > 1 && (
+        <div className="px-4 py-3 border-t border-white/5 flex items-center justify-between bg-surface-container/10 font-body-sm text-xs text-muted-foreground">
+          <div>
+            Showing <span className="text-on-surface font-medium">{startIndex + 1}-{endIndex}</span> of <span className="text-on-surface font-medium">{totalRows}</span> rows
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="w-8 h-8 rounded-lg flex items-center justify-center border border-white/10 bg-white/5 text-on-surface hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all"
+            >
+              <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+            </button>
+            <span className="font-mono">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="w-8 h-8 rounded-lg flex items-center justify-center border border-white/10 bg-white/5 text-on-surface hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none transition-all"
+            >
+              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

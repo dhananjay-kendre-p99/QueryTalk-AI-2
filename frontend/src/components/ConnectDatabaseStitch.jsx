@@ -105,7 +105,7 @@ export default function ConnectDatabaseStitch() {
                     </button>
 <div className="flex gap-3">
 <button className="px-5 py-2.5 rounded-lg text-on-surface-variant font-medium hover:text-white transition-colors">Cancel</button>
-<button className="px-6 py-2.5 bg-[#005ac2] hover:bg-[#4d8eff] text-white rounded-lg font-medium shadow-lg shadow-primary/20 transition-all flex items-center gap-2">
+<button className="px-6 py-2.5 bg-primary/60 hover:bg-primary/80 border border-primary text-white rounded-lg font-medium shadow-lg shadow-primary/20 transition-all flex items-center gap-2">
                             Connect
                             <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
 </button>

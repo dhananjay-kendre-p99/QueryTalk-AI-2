@@ -20,12 +20,9 @@ class LLMOrchestrator:
 
     def generate_sql(self, user_query: str, schema_info: str, api_key: str = None) -> str:
         client = Groq(api_key=api_key) if api_key else self.client
-        if not client:
-            return "SELECT * FROM customers LIMIT 10; -- Mock SQL because API Key is missing"
-
         system_prompt = f"""You are an expert SQL generator. Your task is to convert the user's natural language question into a valid SQL query.
 Use the following database schema to form your query:
-{schema_info}
+{schema_info},if the result generated is not related to the schema, or if the question cannot be answered with the given schema, respond with "The question is not related to the provided schema, so no SQL query can be generated."
 
 Return ONLY the raw SQL query, without any markdown formatting or explanation. Ensure it's read-only."""
 
@@ -33,26 +30,25 @@ Return ONLY the raw SQL query, without any markdown formatting or explanation. E
         messages.extend(self.history)
         messages.append({"role": "user", "content": user_query})
 
-        try:
-            response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=messages,
-                temperature=0.1,
-                max_tokens=1024
-            )
-            result = response.choices[0].message.content.strip()
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=messages,
+            temperature=0.1,
+            max_tokens=1024
+        )
+        result = response.choices[0].message.content.strip()
 
-            # Clean any potential markdown formatting
-            result = result.replace('```sql', '').replace('```', '').strip()
+        # Clean any potential markdown formatting
+        result = result.replace('```sql', '').replace('```', '').strip()
+        if "cannot answer" in result.lower():
+            result = "The question is not related to the provided schema, so no SQL query can be generated."
+        # Update history
+        self.history.append({"role": "user", "content": user_query})
+        self.history.append({"role": "assistant", "content": result})
+        self._trim_history()
 
-            # Update history
-            self.history.append({"role": "user", "content": user_query})
-            self.history.append({"role": "assistant", "content": result})
-            self._trim_history()
+        return result
 
-            return result
-        except Exception as e:
-            raise Exception(f"Groq API Error: {str(e)}")
 
     def summarize_results(self, user_query: str, sql_query: str, data_result: list, api_key: str = None) -> str:
         client = Groq(api_key=api_key) if api_key else self.client

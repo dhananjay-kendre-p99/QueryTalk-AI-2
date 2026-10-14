@@ -1,29 +1,30 @@
 /**
- * Clerk appearance configuration that matches the QueryTalk AI dark theme.
+ * Clerk appearance configuration that matches the QueryTalk AI
+ * dark cinematic SaaS theme — deep-navy foundation + single teal accent.
  * Colors sourced from tailwind.config.js design tokens.
  */
 export const clerkAppearance = {
   variables: {
-    // Core colors from the app's design system
-    colorPrimary: '#adc6ff',
-    colorBackground: '#0c1324',
-    colorInputBackground: '#070d1f',
-    colorInputText: '#dce1fb',
-    colorText: '#dce1fb',
-    colorTextSecondary: '#c2c6d6',
-    colorDanger: '#ffb4ab',
-    colorSuccess: '#89ceff',
-    colorNeutral: '#8c909f',
-    colorShimmer: 'rgba(173, 198, 255, 0.05)',
+    // Core colors
+    colorPrimary:          '#40CCB7',         // Teal accent
+    colorBackground:       '#101321',         // Page background
+    colorInputBackground:  '#0C0E1A',         // Surface-container-lowest
+    colorInputText:        '#FFFFFF',
+    colorText:             '#FFFFFF',
+    colorTextSecondary:    '#9CA3AF',         // Muted foreground / label
+    colorDanger:           '#EF4444',
+    colorSuccess:          '#40CCB7',
+    colorNeutral:          '#6B7280',
+    colorShimmer:          'rgba(64, 204, 183, 0.05)',
 
     // Typography
-    fontFamily: "'Geist', sans-serif",
-    fontFamilyButtons: "'Geist', sans-serif",
-    fontSize: '14px',
+    fontFamily:        "'Space Grotesk', system-ui, sans-serif",
+    fontFamilyButtons: "'Space Grotesk', system-ui, sans-serif",
+    fontSize:          '14px',
     fontWeight: {
       normal: 400,
       medium: 500,
-      bold: 600,
+      bold:   600,
     },
 
     // Border radius
@@ -34,124 +35,127 @@ export const clerkAppearance = {
   },
 
   elements: {
-    // Root card container — glassmorphism
+    // Root card — surface panel
     card: {
-      background: 'rgba(21, 27, 45, 0.5)',
-      backdropFilter: 'blur(24px)',
-      WebkitBackdropFilter: 'blur(24px)',
-      border: '1px solid rgba(255, 255, 255, 0.08)',
-      boxShadow: '0 24px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(173, 198, 255, 0.04)',
-      borderRadius: '1rem',
+      background:          'rgba(28, 30, 45, 0.75)',
+      backdropFilter:      'blur(24px)',
+      WebkitBackdropFilter:'blur(24px)',
+      border:              '1px solid #2A2D3D',
+      boxShadow:           '0 24px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(64, 204, 183, 0.05)',
+      borderRadius:        '1rem',
     },
 
-    // Page/root background
+    // Page / root wrapper
     rootBox: {
       width: '100%',
     },
 
     // Header title
     headerTitle: {
-      color: '#adc6ff',
-      fontSize: '22px',
-      fontWeight: '600',
-      letterSpacing: '-0.01em',
+      color:          '#40CCB7',
+      fontSize:       '22px',
+      fontWeight:     '700',
+      letterSpacing:  '-0.01em',
+      fontFamily:     "'Space Grotesk', system-ui, sans-serif",
     },
 
     headerSubtitle: {
-      color: '#8c909f',
+      color:    '#6B7280',
       fontSize: '13px',
     },
 
     // Form field labels
     formFieldLabel: {
-      color: '#c2c6d6',
-      fontSize: '12px',
-      fontWeight: '500',
-      textTransform: 'uppercase',
-      letterSpacing: '0.05em',
-      fontFamily: "'JetBrains Mono', monospace",
+      color:          '#9CA3AF',
+      fontSize:       '12px',
+      fontWeight:     '500',
+      textTransform:  'uppercase',
+      letterSpacing:  '0.05em',
+      fontFamily:     "'JetBrains Mono', monospace",
     },
 
     // Form field inputs
     formFieldInput: {
-      background: 'rgba(0, 0, 0, 0.25)',
-      border: '1px solid rgba(255, 255, 255, 0.1)',
-      color: '#dce1fb',
+      background:   'rgba(0, 0, 0, 0.25)',
+      border:       '1px solid #2A2D3D',
+      color:        '#FFFFFF',
       borderRadius: '0.5rem',
-      fontSize: '14px',
-      transition: 'all 0.2s ease',
+      fontSize:     '14px',
+      transition:   'all 0.2s ease',
       '&:focus': {
-        borderColor: 'rgba(173, 198, 255, 0.5)',
-        boxShadow: '0 0 0 2px rgba(173, 198, 255, 0.15)',
-        outline: 'none',
+        borderColor: 'rgba(64, 204, 183, 0.7)',
+        boxShadow:   '0 0 0 2px rgba(64, 204, 183, 0.2)',
+        outline:     'none',
       },
     },
 
-    // Primary action button (Sign In / Continue)
+    // Primary action button — teal glow
     formButtonPrimary: {
-      background: 'linear-gradient(135deg, #adc6ff 0%, #4d8eff 100%)',
-      color: '#002e6a',
-      fontWeight: '600',
-      fontSize: '14px',
+      background:   'rgba(64, 204, 183, 0.6)',
+      border:       '1px solid #40CCB7',
+      color:        '#FFFFFF',
+      fontWeight:   '600',
+      fontSize:     '14px',
+      fontFamily:   "'Space Grotesk', system-ui, sans-serif",
       borderRadius: '0.5rem',
-      border: 'none',
-      transition: 'all 0.2s ease',
-      boxShadow: '0 0 20px rgba(173, 198, 255, 0.2)',
+      transition:   'all 0.2s ease',
+      boxShadow:    '0 0 20px rgba(64, 204, 183, 0.2)',
       '&:hover': {
-        opacity: '0.9',
-        boxShadow: '0 0 28px rgba(173, 198, 255, 0.35)',
-        transform: 'translateY(-1px)',
+        background: 'rgba(64, 204, 183, 0.8)',
+        boxShadow:  '0 0 28px rgba(64, 204, 183, 0.35)',
+        transform:  'translateY(-1px)',
       },
       '&:active': {
         transform: 'scale(0.98)',
       },
     },
 
-    // Social OAuth buttons (Google, etc.)
+    // Social OAuth buttons
     socialButtonsIconButton: {
-      background: 'rgba(255, 255, 255, 0.03)',
-      border: '1px solid rgba(255, 255, 255, 0.1)',
+      background:   'rgba(255, 255, 255, 0.03)',
+      border:       '1px solid #2A2D3D',
       borderRadius: '0.5rem',
-      color: '#dce1fb',
+      color:        '#FFFFFF',
       '&:hover': {
-        background: 'rgba(255, 255, 255, 0.07)',
-        borderColor: 'rgba(255, 255, 255, 0.15)',
+        background:   'rgba(64, 204, 183, 0.06)',
+        borderColor:  'rgba(64, 204, 183, 0.3)',
       },
     },
 
     socialButtonsBlockButton: {
-      background: 'rgba(255, 255, 255, 0.03)',
-      border: '1px solid rgba(255, 255, 255, 0.1)',
+      background:   'rgba(255, 255, 255, 0.03)',
+      border:       '1px solid #2A2D3D',
       borderRadius: '0.5rem',
-      color: '#dce1fb',
-      fontSize: '14px',
+      color:        '#FFFFFF',
+      fontSize:     '14px',
       '&:hover': {
-        background: 'rgba(255, 255, 255, 0.07)',
+        background:  'rgba(64, 204, 183, 0.06)',
+        borderColor: 'rgba(64, 204, 183, 0.3)',
       },
     },
 
     // Divider
     dividerLine: {
-      background: 'rgba(255, 255, 255, 0.06)',
+      background: '#2A2D3D',
     },
     dividerText: {
-      color: '#8c909f',
-      fontSize: '12px',
-      fontFamily: "'JetBrains Mono', monospace",
-      textTransform: 'uppercase',
-      letterSpacing: '0.05em',
+      color:          '#6B7280',
+      fontSize:       '12px',
+      fontFamily:     "'JetBrains Mono', monospace",
+      textTransform:  'uppercase',
+      letterSpacing:  '0.05em',
     },
 
-    // Footer links (Don't have an account? Sign up)
+    // Footer links
     footerActionText: {
-      color: '#8c909f',
+      color:    '#6B7280',
       fontSize: '13px',
     },
     footerActionLink: {
-      color: '#adc6ff',
+      color:      '#40CCB7',
       fontWeight: '500',
       '&:hover': {
-        color: '#4d8eff',
+        color: '#2EAA97',
       },
     },
     footer: {
@@ -161,73 +165,73 @@ export const clerkAppearance = {
       },
     },
 
-    // "Secured by Clerk" badge — hide it or style it
+    // "Secured by Clerk" badge — hidden
     footerPages: {
       display: 'none',
     },
 
     // Internal links (Forgot password)
     formFieldAction: {
-      color: '#adc6ff',
+      color:    '#40CCB7',
       fontSize: '13px',
       '&:hover': {
-        color: '#4d8eff',
+        color: '#2EAA97',
       },
     },
 
     // Error messages
     formFieldErrorText: {
-      color: '#ffb4ab',
+      color:    '#EF4444',
       fontSize: '12px',
     },
     alert: {
-      background: 'rgba(255, 180, 171, 0.08)',
-      border: '1px solid rgba(255, 180, 171, 0.2)',
+      background:   'rgba(239, 68, 68, 0.08)',
+      border:       '1px solid rgba(239, 68, 68, 0.25)',
       borderRadius: '0.5rem',
-      color: '#ffb4ab',
-      fontSize: '13px',
+      color:        '#FECACA',
+      fontSize:     '13px',
     },
     alertText: {
-      color: '#ffb4ab',
+      color: '#FECACA',
     },
 
     // OTP / verification code inputs
     otpCodeFieldInput: {
-      background: 'rgba(0, 0, 0, 0.3)',
-      border: '1px solid rgba(255, 255, 255, 0.1)',
-      color: '#dce1fb',
+      background:   'rgba(0, 0, 0, 0.3)',
+      border:       '1px solid #2A2D3D',
+      color:        '#FFFFFF',
       borderRadius: '0.5rem',
-      fontSize: '20px',
-      fontFamily: "'JetBrains Mono', monospace",
+      fontSize:     '20px',
+      fontFamily:   "'JetBrains Mono', monospace",
       '&:focus': {
-        borderColor: '#adc6ff',
-        boxShadow: '0 0 0 2px rgba(173, 198, 255, 0.2)',
+        borderColor: '#40CCB7',
+        boxShadow:   '0 0 0 2px rgba(64, 204, 183, 0.2)',
       },
     },
 
-    // Identity preview (avatar + email shown after entering email)
+    // Identity preview
     identityPreviewText: {
-      color: '#dce1fb',
+      color:    '#FFFFFF',
       fontSize: '14px',
     },
     identityPreviewEditButton: {
-      color: '#adc6ff',
-      '&:hover': { color: '#4d8eff' },
+      color:     '#40CCB7',
+      '&:hover': { color: '#2EAA97' },
     },
 
-    // Avatar / user icon in header
+    // Avatar
     avatarBox: {
       borderRadius: '0.5rem',
-      border: '1px solid rgba(173, 198, 255, 0.2)',
+      border:       '1px solid rgba(64, 204, 183, 0.25)',
     },
 
     // Back button
     backLink: {
-      color: '#8c909f',
-      '&:hover': { color: '#adc6ff' },
+      color:     '#6B7280',
+      '&:hover': { color: '#40CCB7' },
     },
 
-    // Clerk logo (shown in footer) — keep transparent
+    // Clerk logo — hidden
     internal: {
       display: 'none',
     },

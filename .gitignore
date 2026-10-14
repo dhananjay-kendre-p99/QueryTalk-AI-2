@@ -9,3 +9,4 @@ __pycache__
 backend/__pycache__
 backend/*.py[cod]
 backend/venv
+.env

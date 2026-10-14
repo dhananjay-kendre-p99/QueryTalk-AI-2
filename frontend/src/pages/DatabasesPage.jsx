@@ -4,80 +4,96 @@ import { useAuth, useClerk } from '@clerk/react';
 import axios from 'axios';
 import useStore from '../store';
 
-const DB_TYPE_COLORS = {
-  postgresql: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', icon: 'storage' },
-  mysql:      { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', icon: 'storage' },
-  sqlite:     { bg: 'bg-green-500/10', border: 'border-green-500/30', text: 'text-green-400', icon: 'database' },
-  snowflake:  { bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', text: 'text-cyan-400', icon: 'cloud' },
+const DB_TYPE_META = {
+  postgresql: { label: 'PostgreSQL', color: 'text-sky-400',    bg: 'bg-sky-400/8',    border: 'border-sky-400/20',    icon: 'storage' },
+  mysql:      { label: 'MySQL',      color: 'text-orange-400', bg: 'bg-orange-400/8', border: 'border-orange-400/20', icon: 'storage' },
+  sqlite:     { label: 'SQLite',     color: 'text-emerald-400',bg: 'bg-emerald-400/8',border: 'border-emerald-400/20',icon: 'database' },
+  snowflake:  { label: 'Snowflake',  color: 'text-cyan-400',   bg: 'bg-cyan-400/8',   border: 'border-cyan-400/20',   icon: 'cloud' },
 };
 
-function DbTypeTag({ type }) {
-  const style = DB_TYPE_COLORS[type?.toLowerCase()] || DB_TYPE_COLORS.sqlite;
+function DbTypeBadge({ type }) {
+  const m = DB_TYPE_META[type?.toLowerCase()] ?? DB_TYPE_META.sqlite;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-label-mono font-medium border ${style.bg} ${style.border} ${style.text}`}>
-      <span className="material-symbols-outlined text-[14px]">{style.icon}</span>
-      {type?.toUpperCase()}
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold uppercase tracking-wider border ${m.bg} ${m.border} ${m.color}`}>
+      <span className="material-symbols-outlined text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }}>{m.icon}</span>
+      {m.label}
     </span>
   );
 }
 
-function ConnectionCard({ conn, onConnect, onDelete, connecting }) {
+function ConnectionCard({ conn, onConnect, onDelete, connecting, deleteConfirm }) {
   const isConnecting = connecting === conn.id;
+  const isPendingDelete = deleteConfirm === conn.id;
   const updatedAt = new Date(conn.updated_at).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric'
   });
 
   return (
-    <div className="group relative bg-surface-container-low/60 backdrop-blur-md rounded-2xl border border-white/8 p-6 flex flex-col gap-4 hover:border-primary/30 hover:bg-surface-container-low/80 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5">
-      {/* Card header */}
+    <div className={`group relative bg-surface border rounded-2xl p-6 flex flex-col gap-4 transition-all duration-200 ${isPendingDelete ? 'border-error/40 bg-error/5' : 'border-outline hover:border-primary/30 hover:shadow-[0_0_24px_rgba(64,204,183,0.1)]'}`}>
+
+      {/* Delete pending indicator */}
+      {isPendingDelete && (
+        <div className="absolute inset-x-0 top-0 h-0.5 bg-error rounded-t-2xl" />
+      )}
+
+      {/* Header */}
       <div className="flex items-start justify-between gap-3">
-        <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-          <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>database</span>
+        <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 transition-colors group-hover:bg-primary/15">
+          <span className="material-symbols-outlined text-primary text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>database</span>
         </div>
         <button
           onClick={() => onDelete(conn.id)}
           aria-label="Delete connection"
-          className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-lg hover:bg-error/10 flex items-center justify-center text-on-surface-variant hover:text-error transition-colors"
+          title={isPendingDelete ? 'Click again to confirm' : 'Delete connection'}
+          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isPendingDelete ? 'opacity-100 bg-error/15 text-error' : 'opacity-0 group-hover:opacity-100 hover:bg-error/10 text-muted-foreground hover:text-error'}`}
         >
-          <span className="material-symbols-outlined text-[18px]">delete</span>
+          <span className="material-symbols-outlined text-[17px]">{isPendingDelete ? 'warning' : 'delete'}</span>
         </button>
       </div>
 
       {/* Name + type */}
-      <div className="flex flex-col gap-2">
-        <h3 className="font-display text-title-md font-semibold text-on-surface truncate">{conn.name}</h3>
-        <DbTypeTag type={conn.db_type} />
+      <div className="flex flex-col gap-2 flex-1">
+        <h3 className="font-display font-semibold text-white text-base truncate leading-tight">{conn.name}</h3>
+        <DbTypeBadge type={conn.db_type} />
       </div>
 
-      {/* Hints */}
-      <div className="flex flex-col gap-1.5 text-sm">
+      {/* Meta */}
+      <div className="flex flex-col gap-1.5">
         {conn.host_hint && (
-          <div className="flex items-center gap-2 text-on-surface-variant">
-            <span className="material-symbols-outlined text-[16px]">dns</span>
-            <span className="font-label-mono truncate">{conn.host_hint}</span>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <span className="material-symbols-outlined text-[14px]">dns</span>
+            <span className="font-mono text-[12px] truncate">{conn.host_hint}</span>
           </div>
         )}
         {conn.db_name_hint && (
-          <div className="flex items-center gap-2 text-on-surface-variant">
-            <span className="material-symbols-outlined text-[16px]">table_chart</span>
-            <span className="font-label-mono truncate">{conn.db_name_hint}</span>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <span className="material-symbols-outlined text-[14px]">table_chart</span>
+            <span className="font-mono text-[12px] truncate">{conn.db_name_hint}</span>
           </div>
         )}
-        <div className="flex items-center gap-2 text-on-surface-variant/60">
-          <span className="material-symbols-outlined text-[16px]">schedule</span>
-          <span className="text-xs">Last used {updatedAt}</span>
+        <div className="flex items-center gap-2 text-muted-foreground/60">
+          <span className="material-symbols-outlined text-[13px]">schedule</span>
+          <span className="text-[11px]">Last used {updatedAt}</span>
         </div>
       </div>
 
       {/* Connect button */}
       <button
         onClick={() => onConnect(conn)}
-        disabled={isConnecting}
-        className="mt-auto w-full py-2.5 rounded-xl bg-primary text-on-primary font-medium text-sm hover:bg-primary/90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+        disabled={isConnecting || isPendingDelete}
+        className="mt-1 w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+        style={{
+          background: 'rgba(64, 204, 183, 0.15)',
+          border: '1px solid rgba(64, 204, 183, 0.5)',
+          color: '#40CCB7',
+          fontFamily: "'Space Grotesk', sans-serif",
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(64,204,183,0.25)'; e.currentTarget.style.boxShadow = '0 0 20px rgba(64,204,183,0.18)'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(64,204,183,0.15)'; e.currentTarget.style.boxShadow = 'none'; }}
       >
         {isConnecting ? (
           <>
-            <span className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />
+            <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
             Connecting…
           </>
         ) : (
@@ -93,25 +109,30 @@ function ConnectionCard({ conn, onConnect, onDelete, connecting }) {
 
 function EmptyState({ onAdd }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-      {/* Animated ring */}
-      <div className="relative w-32 h-32 mb-8">
-        <div className="absolute inset-0 rounded-full border-2 border-primary/10 animate-ping" style={{ animationDuration: '3s' }} />
-        <div className="absolute inset-2 rounded-full border border-primary/20" />
-        <div className="w-full h-full rounded-full bg-primary/5 flex items-center justify-center">
-          <span className="material-symbols-outlined text-primary text-[52px]" style={{ fontVariationSettings: "'FILL' 1" }}>database</span>
+    <div className="flex flex-col items-center justify-center min-h-[56vh] text-center px-4 animate-fade-up">
+      <div className="relative w-28 h-28 mb-8">
+        <div className="absolute inset-0 rounded-full border border-primary/10 animate-ping" style={{ animationDuration: '3s' }} />
+        <div className="absolute inset-3 rounded-full border border-primary/15" />
+        <div className="w-full h-full rounded-full bg-primary/6 border border-primary/12 flex items-center justify-center">
+          <span className="material-symbols-outlined text-primary/70 text-[48px]" style={{ fontVariationSettings: "'FILL' 1" }}>database</span>
         </div>
       </div>
-      <h2 className="font-display text-headline-sm font-bold text-on-surface mb-3">No databases connected</h2>
-      <p className="font-body-lg text-on-surface-variant max-w-sm mb-8">
+      <h2 className="font-display text-2xl font-bold text-white mb-2">No databases connected</h2>
+      <p className="text-muted-foreground max-w-xs mb-8 leading-relaxed">
         Connect your first database to start querying with natural language.
       </p>
       <button
         onClick={onAdd}
         id="add-first-database-btn"
-        className="flex items-center gap-2 px-8 py-3.5 rounded-xl bg-primary text-on-primary font-semibold text-base hover:bg-primary/90 active:scale-[0.98] transition-all shadow-xl shadow-primary/25"
+        className="flex items-center gap-2 px-7 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
+        style={{
+          background: 'rgba(64,204,183,0.18)',
+          border: '1px solid #40CCB7',
+          color: '#40CCB7',
+          fontFamily: "'Space Grotesk', sans-serif",
+        }}
       >
-        <span className="material-symbols-outlined">add</span>
+        <span className="material-symbols-outlined text-[18px]">add</span>
         Connect your first database
       </button>
     </div>
@@ -120,15 +141,17 @@ function EmptyState({ onAdd }) {
 
 function SkeletonCard() {
   return (
-    <div className="bg-surface-container-low/40 rounded-2xl border border-white/5 p-6 flex flex-col gap-4 animate-pulse">
-      <div className="w-11 h-11 rounded-xl bg-white/5" />
-      <div className="h-5 bg-white/5 rounded-lg w-3/4" />
-      <div className="h-6 bg-white/5 rounded-full w-24" />
+    <div className="bg-surface border border-outline rounded-2xl p-6 flex flex-col gap-4 animate-pulse">
+      <div className="w-10 h-10 rounded-xl bg-white/5" />
       <div className="flex flex-col gap-2">
-        <div className="h-4 bg-white/5 rounded w-2/3" />
-        <div className="h-4 bg-white/5 rounded w-1/2" />
+        <div className="h-4 bg-white/5 rounded-lg w-3/5" />
+        <div className="h-6 bg-white/5 rounded-full w-24" />
       </div>
-      <div className="h-10 bg-white/5 rounded-xl mt-auto" />
+      <div className="flex flex-col gap-2">
+        <div className="h-3.5 bg-white/5 rounded w-2/3" />
+        <div className="h-3 bg-white/5 rounded w-1/2" />
+      </div>
+      <div className="h-10 bg-white/5 rounded-xl mt-1" />
     </div>
   );
 }
@@ -141,9 +164,9 @@ export default function DatabasesPage() {
 
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState(null); // ID of connection being activated
+  const [connecting, setConnecting] = useState(null);
   const [error, setError] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // ID awaiting confirmation
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const fetchConnections = async () => {
     setLoading(true);
@@ -156,7 +179,6 @@ export default function DatabasesPage() {
       setConnections(res.data);
     } catch (err) {
       if (err.response?.status === 404) {
-        // User doesn't exist in DB yet (webhook hasn't fired)
         setConnections([]);
       } else {
         setError('Failed to load your databases. Please refresh.');
@@ -166,9 +188,7 @@ export default function DatabasesPage() {
     }
   };
 
-  useEffect(() => {
-    fetchConnections();
-  }, []);
+  useEffect(() => { fetchConnections(); }, []);
 
   const handleConnect = async (conn) => {
     setConnecting(conn.id);
@@ -190,11 +210,9 @@ export default function DatabasesPage() {
   const handleDelete = async (id) => {
     if (deleteConfirm !== id) {
       setDeleteConfirm(id);
-      // Auto-clear confirmation after 3s
       setTimeout(() => setDeleteConfirm(c => c === id ? null : c), 3000);
       return;
     }
-    // Second click — confirmed
     try {
       const token = await getToken();
       await axios.delete(`/api/db/saved/${id}`, {
@@ -213,70 +231,85 @@ export default function DatabasesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background font-body-sm text-body-sm antialiased">
-      {/* Ambient glows */}
-      <div className="fixed top-[-100px] left-[10%] w-[500px] h-[500px] bg-primary rounded-full mix-blend-screen filter blur-[180px] opacity-8 pointer-events-none" />
-      <div className="fixed bottom-[-100px] right-[10%] w-[400px] h-[400px] bg-tertiary rounded-full mix-blend-screen filter blur-[180px] opacity-8 pointer-events-none" />
+    <div className="min-h-screen bg-background antialiased">
+      {/* Subtle ambient teal glow top-left */}
+      <div className="fixed top-[-120px] left-[5%] w-[520px] h-[520px] bg-primary/6 rounded-full blur-[180px] pointer-events-none" />
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full bg-surface/30 backdrop-blur-xl border-b border-white/5 flex justify-between items-center h-16 px-6 md:px-12">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>neurology</span>
-          <div>
-            <h1 className="font-display text-title-lg font-bold text-primary tracking-tight leading-none">QueryTalk AI</h1>
-            <p className="font-label-mono text-[10px] text-on-surface-variant tracking-widest uppercase">Enterprise Tier</p>
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-50 bg-surface/60 backdrop-blur-xl border-b border-outline">
+        <div className="max-w-6xl mx-auto px-6 md:px-10 h-16 flex items-center justify-between gap-4">
+
+          {/* Brand */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center">
+              <span className="material-symbols-outlined text-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>neurology</span>
+            </div>
+            <div className="leading-tight">
+              <p className="font-display font-bold text-white text-[15px] leading-none">QueryTalk AI</p>
+              <p className="text-[10px] font-mono text-muted-foreground tracking-widest uppercase leading-none mt-0.5">Enterprise Tier</p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            id="add-database-btn"
-            onClick={() => navigate('/connect')}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-medium hover:bg-primary/90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
-          >
-            <span className="material-symbols-outlined text-[18px]">add</span>
-            <span className="hidden sm:inline">Add Database</span>
-          </button>
-          <button
-            onClick={handleLogout}
-            className="w-9 h-9 rounded-lg hover:bg-white/5 flex items-center justify-center text-on-surface-variant hover:text-error transition-colors"
-            aria-label="Sign out"
-          >
-            <span className="material-symbols-outlined text-[20px]">logout</span>
-          </button>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2">
+            <button
+              id="add-database-btn"
+              onClick={() => navigate('/connect')}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 glow-ring"
+              style={{
+                background: 'rgba(64,204,183,0.15)',
+                border: '1px solid #40CCB7',
+                color: '#40CCB7',
+                fontFamily: "'Space Grotesk', sans-serif",
+              }}
+            >
+              <span className="material-symbols-outlined text-[17px]">add</span>
+              <span className="hidden sm:inline">Add Database</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="w-9 h-9 rounded-lg border border-outline hover:border-outline-variant hover:bg-white/4 flex items-center justify-center text-muted-foreground hover:text-error transition-all"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <span className="material-symbols-outlined text-[18px]">logout</span>
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="max-w-6xl mx-auto px-6 md:px-12 py-10">
+      {/* ── Main ───────────────────────────────────────────────────────── */}
+      <main className="max-w-6xl mx-auto px-6 md:px-10 py-10">
+
         {/* Page title */}
-        <div className="mb-10">
-          <h2 className="font-display text-headline-md font-bold text-on-surface tracking-tight">My Databases</h2>
-          <p className="font-body-lg text-on-surface-variant mt-1">Select a connection to start querying with AI.</p>
+        <div className="mb-8">
+          <h2 className="font-display text-2xl font-bold text-white tracking-tight">My Databases</h2>
+          <p className="text-muted-foreground mt-1 text-sm">Select a connection to start querying with AI.</p>
         </div>
 
         {/* Error banner */}
         {error && (
-          <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-error/10 border border-error/20 text-error">
-            <span className="material-symbols-outlined text-[20px]">error</span>
-            <p className="text-sm">{error}</p>
-            <button onClick={() => setError('')} className="ml-auto hover:opacity-70">
-              <span className="material-symbols-outlined text-[18px]">close</span>
+          <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-error/8 border border-error/25 text-error animate-fade-up">
+            <span className="material-symbols-outlined text-[18px] shrink-0">error</span>
+            <p className="text-sm flex-1">{error}</p>
+            <button onClick={() => setError('')} className="hover:opacity-70 transition-opacity">
+              <span className="material-symbols-outlined text-[16px]">close</span>
             </button>
           </div>
         )}
 
-        {/* Delete confirmation banner */}
+        {/* Delete confirmation */}
         {deleteConfirm && (
-          <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-error/10 border border-error/30 text-on-surface">
-            <span className="material-symbols-outlined text-error text-[20px]">warning</span>
-            <p className="text-sm flex-1">Click the delete button again to confirm removal.</p>
-            <button onClick={() => setDeleteConfirm(null)} className="text-on-surface-variant hover:text-on-surface text-xs underline">
+          <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-400/8 border border-amber-400/25 text-amber-400 animate-fade-up">
+            <span className="material-symbols-outlined text-[18px] shrink-0">warning</span>
+            <p className="text-sm flex-1 text-white/85">Click delete again to <strong className="text-white">confirm removal</strong> of this connection.</p>
+            <button onClick={() => setDeleteConfirm(null)} className="text-muted-foreground hover:text-white text-xs underline underline-offset-2 transition-colors">
               Cancel
             </button>
           </div>
         )}
 
-        {/* Loading skeletons */}
+        {/* Loading */}
         {loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
@@ -298,6 +331,7 @@ export default function DatabasesPage() {
                 onConnect={handleConnect}
                 onDelete={handleDelete}
                 connecting={connecting}
+                deleteConfirm={deleteConfirm}
               />
             ))}
 
@@ -305,12 +339,12 @@ export default function DatabasesPage() {
             <button
               onClick={() => navigate('/connect')}
               id="add-another-database-btn"
-              className="group border-2 border-dashed border-white/10 hover:border-primary/30 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 text-on-surface-variant hover:text-primary transition-all min-h-[220px] cursor-pointer"
+              className="group border border-dashed border-outline hover:border-primary/40 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-primary transition-all duration-200 min-h-[220px] cursor-pointer"
             >
-              <div className="w-11 h-11 rounded-xl border border-dashed border-current flex items-center justify-center group-hover:bg-primary/5 transition-colors">
-                <span className="material-symbols-outlined text-[24px]">add</span>
+              <div className="w-10 h-10 rounded-xl border border-dashed border-current flex items-center justify-center group-hover:bg-primary/8 transition-colors">
+                <span className="material-symbols-outlined text-[22px]">add</span>
               </div>
-              <span className="font-medium text-sm">Add Database</span>
+              <span className="text-sm font-semibold font-display">Add Database</span>
             </button>
           </div>
         )}

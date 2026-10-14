@@ -49,7 +49,7 @@ export default function AnalyticsDashboard() {
               { name: 'Jun', current: 7500, projected: 4200 }
             ],
             marketShareData: [
-              { name: 'North America', value: 62, color: '#adc6ff' },
+              { name: 'North America', value: 62, color: '#40CCB7' },
               { name: 'Europe', value: 25, color: '#df7412' },
               { name: 'APAC', value: 13, color: '#00a2e6' }
             ],
@@ -191,15 +191,15 @@ export default function AnalyticsDashboard() {
               <AreaChart data={growthData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorCurrent" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#adc6ff" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#adc6ff" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#40CCB7" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#40CCB7" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="name" stroke="#8c909f" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="#8c909f" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v/1000}k`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="projected" stroke="#8c909f" strokeDasharray="5 5" fill="none" strokeWidth={2} />
-                <Area type="monotone" dataKey="current" stroke="#adc6ff" fillOpacity={1} fill="url(#colorCurrent)" strokeWidth={3} />
+                <Area type="monotone" dataKey="current" stroke="#40CCB7" fillOpacity={1} fill="url(#colorCurrent)" strokeWidth={3} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -265,7 +265,7 @@ export default function AnalyticsDashboard() {
                 <XAxis dataKey="name" stroke="#8c909f" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="#8c909f" fontSize={12} tickLine={false} axisLine={false} />
                 <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} content={<CustomTooltip />} />
-                <Bar dataKey="value" fill="#4d8eff" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" fill="#40CCB7" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -288,7 +288,7 @@ export default function AnalyticsDashboard() {
                 <YAxis type="number" dataKey="y" stroke="#8c909f" fontSize={12} tickLine={false} axisLine={false} />
                 <ZAxis type="number" dataKey="z" range={[50, 400]} />
                 <Tooltip cursor={{strokeDasharray: '3 3'}} content={<CustomTooltip />} />
-                <Scatter name="Segment A" data={customerSegmentsData.filter(d => d.group === 1)} fill="#adc6ff" />
+                <Scatter name="Segment A" data={customerSegmentsData.filter(d => d.group === 1)} fill="#40CCB7" />
                 <Scatter name="Segment B" data={customerSegmentsData.filter(d => d.group === 2)} fill="#df7412" />
                 <Scatter name="Segment C" data={customerSegmentsData.filter(d => d.group === 3)} fill="#00a2e6" />
               </ScatterChart>

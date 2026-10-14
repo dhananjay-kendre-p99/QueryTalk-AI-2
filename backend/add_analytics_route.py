@@ -4,6 +4,7 @@ with open('routes/database.py', 'r') as f:
     content = f.read()
 
 analytics_endpoint = """
+import random
 from sqlalchemy import text
 from datetime import datetime, date, timedelta
 
