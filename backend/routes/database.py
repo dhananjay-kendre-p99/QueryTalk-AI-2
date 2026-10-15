@@ -330,6 +330,13 @@ def _iter_user_tables(inspector):
         and not (schema_name or "").startswith("pg_temp")
     ] or [None]
 
+    # Prioritize default schema first so its tables are listed first
+    if default_schema in user_schemas:
+        user_schemas = [s for s in user_schemas if s != default_schema]
+        user_schemas.insert(0, default_schema)
+    elif default_schema is not None:
+        user_schemas.insert(0, default_schema)
+
     for schema_name in user_schemas:
         effective_schema = None if schema_name == default_schema else schema_name
         try:
@@ -427,6 +434,7 @@ def connect_db(
         connection_id = str(connection.id)
 
     app_db.commit()
+    set_engine(conn_str, connection_id=connection_id)
 
     return {
         "status": "success",
@@ -483,7 +491,7 @@ def reconnect_db(
         raise HTTPException(status_code=400, detail=f"Reconnection failed: {e}")
 
     # Set the in-memory engine
-    set_engine(conn_str)
+    set_engine(conn_str, connection_id=str(conn.id))
 
     # Update the timestamp
     conn.updated_at = datetime.utcnow()
@@ -558,7 +566,10 @@ def get_connection_table_names(
             detail="Could not decrypt connection string. The encryption key may have changed.",
         )
 
-    tables = _get_table_names_from_connection(conn_str)
+    if conn.schema_cache:
+        tables = [t.get("full_name") or t.get("name") for t in conn.schema_cache]
+    else:
+        tables = _get_table_names_from_connection(conn_str)
     return {
         "status": "success",
         "connection_id": str(conn.id),
@@ -578,6 +589,10 @@ def get_connection_schema(
         default=None,
         description="Optional table name. Use schema.table for non-default schemas.",
     ),
+    refresh: bool = Query(
+        default=False,
+        description="If True, bypass schema cache and update it with a fresh database inspection.",
+    ),
     app_db: Session = Depends(get_app_db),
     payload: dict = Depends(verify_clerk_token),
 ):
@@ -596,12 +611,62 @@ def get_connection_schema(
             detail="Could not decrypt connection string. The encryption key may have changed.",
         )
 
-    tables = _get_schema_from_connection(conn_str, table_filter=table)
+    # Use cached schema if available and not requesting a refresh
+    if not refresh and conn.schema_cache is not None:
+        cached_tables = conn.schema_cache
+        if table:
+            selected_schema, selected_table = _split_table_name(table)
+            filtered_tables = []
+            for t in cached_tables:
+                t_name = t.get("name")
+                t_schema = t.get("schema_name")
+                if selected_table and t_name != selected_table:
+                    continue
+                if selected_schema is not None and t_schema != selected_schema:
+                    continue
+                filtered_tables.append(t)
+            if not filtered_tables:
+                raise HTTPException(status_code=404, detail=f"Table '{table}' not found in cached schema.")
+            tables_to_return = filtered_tables
+        else:
+            tables_to_return = cached_tables
+    else:
+        # Fetch the entire schema to populate the cache
+        tables_list = _get_schema_from_connection(conn_str, table_filter=None)
+        
+        # Serialize the tables list (Pydantic models) to dicts for JSONB storage
+        serialized_tables = []
+        for t in tables_list:
+            if hasattr(t, "model_dump"):
+                serialized_tables.append(t.model_dump())
+            else:
+                serialized_tables.append(t.dict())
+
+        # Update cache and timestamp
+        conn.schema_cache = serialized_tables
+        conn.schema_synced_at = datetime.utcnow()
+        app_db.commit()
+
+        # Filter the tables list if a specific table was requested
+        if table:
+            selected_schema, selected_table = _split_table_name(table)
+            tables_to_return = []
+            for t in tables_list:
+                if selected_table and t.name != selected_table:
+                    continue
+                if selected_schema is not None and t.schema_name != selected_schema:
+                    continue
+                tables_to_return.append(t)
+            if not tables_to_return:
+                raise HTTPException(status_code=404, detail=f"Table '{table}' not found.")
+        else:
+            tables_to_return = tables_list
+
     return {
         "status": "success",
         "connection_id": str(conn.id),
-        "tables": tables,
-        "count": len(tables),
+        "tables": tables_to_return,
+        "count": len(tables_to_return),
     }
 
 

@@ -15,3 +15,4 @@ pydantic
 python-dotenv
 pymysql
 svix
+snowflake-sqlalchemy
