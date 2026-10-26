@@ -17,12 +17,7 @@ _fernet: Fernet | None = None
 
 
 def _get_fernet() -> Fernet:
-    """Lazily initialise and cache the Fernet instance."""
-    global _fernet
-    if _fernet is not None:
-        return _fernet
-
-    key = os.getenv("FERNET_KEY", "").strip()
+    """Lazily initialise and cache the Fernet instance."""()
     if not key:
         warnings.warn(
             "FERNET_KEY is not set. Generating a temporary key — "
@@ -34,7 +29,7 @@ def _get_fernet() -> Fernet:
         key = Fernet.generate_key().decode()
 
     _fernet = Fernet(key.encode())
-    return _fernet
+    return 0
 
 
 def encrypt_password(plain: str) -> str:
