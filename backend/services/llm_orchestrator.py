@@ -18,11 +18,38 @@ class LLMOrchestrator:
         if len(self.history) > 10:
             self.history = self.history[-10:]
 
-    def generate_sql(self, user_query: str, schema_info: str, api_key: str = None) -> str:
+    def generate_sql(self, user_query: str, schema_info: str, api_key: str = None, dialect: str = "sqlite") -> str:
         client = Groq(api_key=api_key) if api_key else self.client
+        
+        dialect_instructions = ""
+        db_dialect = (dialect or "sqlite").lower()
+        if db_dialect == "postgresql":
+            dialect_instructions = (
+                "CRITICAL: The database is PostgreSQL. You MUST generate valid PostgreSQL syntax:\n"
+                "1. DO NOT use backticks (`) for quoting identifiers (table names, column names). Backticks are a syntax error in PostgreSQL.\n"
+                "2. Table names and column names that contain spaces, uppercase letters, or special characters MUST be quoted using double quotes (\"), for example: \"Sales Data\", \"Quantity Ordered\", \"City\".\n"
+                "3. Ensure all table and column names match the schema exactly, keeping spaces and casing if they are present in the schema, and enclosing them in double quotes.\n"
+                "4. Case-sensitivity: Identifiers in PostgreSQL are folded to lower case unless they are double-quoted. Therefore, always double-quote any multi-word identifiers or identifiers with mixed case or spaces to be completely safe."
+            )
+        elif db_dialect == "mysql":
+            dialect_instructions = (
+                "CRITICAL: The database is MySQL. You MUST generate valid MySQL syntax:\n"
+                "1. Use backticks (`) for quoting identifiers (table names, column names) that contain spaces or special characters, for example: `Sales Data`, `Quantity Ordered`.\n"
+                "2. Ensure all table and column names match the schema exactly, keeping spaces and casing if they are present in the schema, and enclosing them in backticks."
+            )
+        else:
+            dialect_instructions = (
+                f"CRITICAL: The database is {db_dialect.upper()}. You MUST generate valid standard SQL syntax:\n"
+                "1. Table names and column names that contain spaces, uppercase letters, or special characters MUST be quoted using double quotes (\") or brackets ([]), for example: \"Sales Data\", \"Quantity Ordered\".\n"
+                "2. DO NOT use backticks (`) unless explicitly supported by the dialect. Double quotes are the standard ANSI SQL quoting character.\n"
+                "3. Ensure all table and column names match the schema exactly, keeping spaces and casing if they are present in the schema, and enclosing them in double quotes."
+            )
+
         system_prompt = f"""You are an expert SQL generator. Your task is to convert the user's natural language question into a valid SQL query.
 Use the following database schema to form your query:
 {schema_info},if the result generated is not related to the schema, or if the question cannot be answered with the given schema, respond with "The question is not related to the provided schema, so no SQL query can be generated."
+
+{dialect_instructions}
 
 Return ONLY the raw SQL query, without any markdown formatting or explanation. Ensure it's read-only."""
 

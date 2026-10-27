@@ -689,17 +689,38 @@ def get_analytics():
             
         session.close()
         
+        # Robust date parsing helper to handle string dates (SQLite) and date objects (Postgres) safely
+        def parse_db_date(d):
+            if d is None:
+                return date.today()
+            if isinstance(d, date):
+                if isinstance(d, datetime):
+                    return d.date()
+                return d
+            if isinstance(d, str):
+                try:
+                    return datetime.fromisoformat(d.replace("Z", "+00:00")).date()
+                except ValueError:
+                    try:
+                        return datetime.strptime(d[:10], "%Y-%m-%d").date()
+                    except ValueError:
+                        pass
+            return date.today()
+
+        # Parse and transform sales rows to ensure we use date objects
+        parsed_sales = [(s[0], parse_db_date(s[1]), s[2]) for s in sales]
+
         # Aggregate Data in Python to avoid cross-dialect SQL issues
-        total_revenue = sum(s[0] for s in sales) if sales else 0
-        active_customers = len(set(s[2] for s in sales))
+        total_revenue = sum(s[0] for s in parsed_sales) if parsed_sales else 0
+        active_customers = len(set(s[2] for s in parsed_sales))
         
         # Dates
         today = date.today()
         thirty_days_ago = today - timedelta(days=30)
         sixty_days_ago = today - timedelta(days=60)
         
-        sales_this_month = [s for s in sales if s[1] >= thirty_days_ago]
-        sales_last_month = [s for s in sales if sixty_days_ago <= s[1] < thirty_days_ago]
+        sales_this_month = [s for s in parsed_sales if s[1] >= thirty_days_ago]
+        sales_last_month = [s for s in parsed_sales if sixty_days_ago <= s[1] < thirty_days_ago]
         
         rev_this_month = sum(s[0] for s in sales_this_month)
         rev_last_month = sum(s[0] for s in sales_last_month)
@@ -710,7 +731,7 @@ def get_analytics():
             
         # Monthly Growth Data (last 12 months)
         monthly_data = {}
-        for s in sales:
+        for s in parsed_sales:
             month_key = s[1].strftime("%b")
             if month_key not in monthly_data:
                 monthly_data[month_key] = 0
@@ -730,7 +751,7 @@ def get_analytics():
         # Market Share & Revenue by Region
         user_regions = {u[0]: u[1] for u in users}
         region_revenue = {}
-        for s in sales:
+        for s in parsed_sales:
             r = user_regions.get(s[2], "Unknown")
             if r not in region_revenue:
                 region_revenue[r] = 0
@@ -754,7 +775,7 @@ def get_analytics():
             
         # Customer Segments (Acquisition Cost vs Total User Revenue)
         user_revs = {}
-        for s in sales:
+        for s in parsed_sales:
             if s[2] not in user_revs:
                 user_revs[s[2]] = 0
             user_revs[s[2]] += s[0]
